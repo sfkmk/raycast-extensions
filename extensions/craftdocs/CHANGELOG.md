@@ -1,5 +1,16 @@
 # Craftdocs Changelog
 
+## [UX improvements] - {PR_MERGE_DATE}
+
+- Hide subtitles for documents in "Blocks Search" results; show subtitles only for blocks.
+- Swap the display of title and subtitle for block entries in "Blocks Search" to reflect user intent; title=query occurrence, subtitle=parent document.
+- Queries for date-like patterns prioritize Daily Note results in "Blocks Search".
+- Enhanced standard and natural language date parsing; date parsing now understands many LTR languages.
+- Added natural language date parsing in "Blocks Search".
+- Added ability to create non-existing Daily Notes in "Blocks Search".
+- Improved descriptions for better conciseness.
+- Fixed tutorial for "Manage Spaces" command on first-time open.
+
 ## [Feature] - {PR_MERGE_DATE}
 
 - Added a new `Add to Daily Note` command with intelligent daily note detection and configurable append/prepend position.

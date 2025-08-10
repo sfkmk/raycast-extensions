@@ -1,6 +1,7 @@
 import { BindParams, Database, SqlValue } from "../../assets/sql-wasm-fts5";
 import { Block } from "./useSearch";
 import { DocBlock } from "./useDocumentSearch";
+import { SEARCH_CONSTANTS } from "../constants";
 
 export const searchQuery = `
 SELECT id, content, type, entityType, documentId
@@ -24,13 +25,16 @@ ORDER BY customRank
 LIMIT ?
 `;
 
-export const limit = 40;
+export const limit = SEARCH_CONSTANTS.RESULTS_LIMIT;
 
 export const buildMatchQuery = (str: string): string => {
   if (!str || str.length === 0) return "";
 
+  // Check if this looks like a date query to be more precise
+  const isDateLike = /^\d{1,2}\.?\s*[a-zA-ZäöüÄÖÜß]+\s*\d{0,4}$/.test(str.trim());
+
   const terms = termsForFTS5(str);
-  const phrases = phrasesForFTS5(terms);
+  const phrases = phrasesForFTS5(terms, isDateLike);
 
   return `{content exactMatchContent} : (${phrases.join(") OR (")})`;
 };
@@ -47,6 +51,42 @@ export const searchBlocks = (database: Database, spaceID: string, query: string,
 
     return [];
   }
+};
+
+export const prioritizeDailyNotes = (blocks: Block[], parsedDate?: Date): Block[] => {
+  if (!parsedDate) return blocks;
+
+  // Format the parsed date to match Craft's internal format (YYYY.MM.DD)
+  const isoFormat = formatDateToISO(parsedDate);
+
+  // Separate daily notes from other blocks
+  const dailyNotes: Block[] = [];
+  const otherBlocks: Block[] = [];
+
+  blocks.forEach((block) => {
+    // Check if this is a daily note by looking at document names and content
+    if (
+      block.entityType === "document" &&
+      (block.documentName === isoFormat ||
+        block.content === isoFormat ||
+        block.documentName?.includes(isoFormat) ||
+        block.content?.includes(isoFormat))
+    ) {
+      dailyNotes.push(block);
+    } else {
+      otherBlocks.push(block);
+    }
+  });
+
+  // Return daily notes first, then other blocks
+  return [...dailyNotes, ...otherBlocks];
+};
+
+const formatDateToISO = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}.${month}.${day}`;
 };
 
 export const backfillBlocksWithDocumentNames = (database: Database, blocks: Block[]): Block[] => {
@@ -135,7 +175,20 @@ const termsForFTS5 = (str: string): string[] =>
     .map((word) => word.replace('"', " "))
     .map((word) => `"${word}"`);
 
-const phrasesForFTS5 = (terms: string[]): string[] => {
+const phrasesForFTS5 = (terms: string[], isDateLike = false): string[] => {
+  if (isDateLike) {
+    // For date-like queries, be more precise and avoid overly broad matches
+    const phrases = [terms.join(" ")];
+
+    // Only add exact phrase matching for dates
+    if (terms.length > 1) {
+      phrases.push(terms.join(" ") + "*");
+    }
+
+    return phrases;
+  }
+
+  // Original logic for non-date queries
   const phrases = [terms.join(" "), terms.join(" ") + "*"];
 
   if (terms.length > 1) {

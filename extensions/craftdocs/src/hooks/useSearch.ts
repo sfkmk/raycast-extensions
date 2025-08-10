@@ -4,6 +4,7 @@ import {
   backfillBlocksWithDocumentNames,
   buildMatchQuery,
   limit,
+  prioritizeDailyNotes,
   searchBlocks,
   searchQuery,
   searchQueryOnEmptyParams,
@@ -19,7 +20,7 @@ export type Block = {
   documentName: string;
 };
 
-export default function useSearch({ databasesLoading, databases }: UseDB, text: string) {
+export default function useSearch({ databasesLoading, databases }: UseDB, text: string, parsedDate?: Date) {
   const [state, setState] = useState({ resultsLoading: true, results: [] as Block[] });
 
   useEffect(() => {
@@ -35,10 +36,10 @@ export default function useSearch({ databasesLoading, databases }: UseDB, text: 
       .map(({ database, spaceID }) => ({ database, blocks: searchBlocks(database, spaceID, query, params) }))
       .map(({ database, blocks }) => backfillBlocksWithDocumentNames(database, blocks));
 
-    const results = blocksOfSpaces.flat();
+    const results = prioritizeDailyNotes(blocksOfSpaces.flat(), parsedDate);
     setState({ results, resultsLoading: false });
     console.debug(`got ${results.length} results for query search '${text}'`);
-  }, [databasesLoading, text]);
+  }, [databasesLoading, text, parsedDate]);
 
   return state;
 }

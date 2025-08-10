@@ -1,6 +1,8 @@
-import { Detail } from "@raycast/api";
+import { Detail, ActionPanel, Action, useNavigation } from "@raycast/api";
 
 export default function SpaceIdTutorial() {
+  const { pop } = useNavigation();
+
   const markdown = `
 # How to Find Your Space IDs
 
@@ -67,5 +69,14 @@ Now you can use the Manage Spaces command to:
 
 `;
 
-  return <Detail markdown={markdown} />;
+  return (
+    <Detail
+      markdown={markdown}
+      actions={
+        <ActionPanel>
+          <Action title="Back to Manage Spaces" onAction={pop} />
+        </ActionPanel>
+      }
+    />
+  );
 }

@@ -1,11 +1,11 @@
 import { homedir } from "os";
 import { readdirSync, existsSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
+import { BUNDLE_IDS } from "./constants";
 
-const bundleIds = ["com.lukilabs.lukiapp", "com.lukilabs.lukiapp-setapp"];
-const [craftDataRoot] = bundleIds
-  .map((id) => path.join(homedir(), `/Library/Containers/${id}/Data/Library/Application Support/${id}`))
-  .filter(existsSync);
+const [craftDataRoot] = BUNDLE_IDS.map((id) =>
+  path.join(homedir(), `/Library/Containers/${id}/Data/Library/Application Support/${id}`)
+).filter(existsSync);
 const searchPath = path.join(craftDataRoot, "Search");
 const SPACES_CONFIG_FILE = path.join(craftDataRoot, "raycast-spaces-config.json");
 

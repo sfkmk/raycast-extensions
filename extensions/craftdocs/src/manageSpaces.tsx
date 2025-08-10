@@ -61,15 +61,14 @@ export default function ManageSpaces() {
   const appExists = useAppExists();
   const { config, configLoading, refreshConfig } = useConfig(appExists);
   const { push } = useNavigation();
-  const [showTutorial, setShowTutorial] = useState(false);
+  const [isFirstTime, setIsFirstTime] = useState(false);
 
   // Check if this is the first time opening Manage Spaces
   useEffect(() => {
     const checkFirstTime = async () => {
       const hasSeenTutorial = await LocalStorage.getItem("hasSeenSpaceIdTutorial");
       if (!hasSeenTutorial) {
-        setShowTutorial(true);
-        await LocalStorage.setItem("hasSeenSpaceIdTutorial", "true");
+        setIsFirstTime(true);
       }
     };
     checkFirstTime();
@@ -79,13 +78,11 @@ export default function ManageSpaces() {
     push(<SpaceIdTutorial />);
   };
 
-  // Show tutorial on first visit
-  useEffect(() => {
-    if (showTutorial && config && config.spaces.length > 0) {
-      showSpaceIdTutorial();
-      setShowTutorial(false);
-    }
-  }, [showTutorial, config]);
+  const handleTutorialViewed = async () => {
+    await LocalStorage.setItem("hasSeenSpaceIdTutorial", "true");
+    setIsFirstTime(false);
+    showSpaceIdTutorial();
+  };
 
   const handleRename = (spaceID: string, newName: string | null) => {
     if (config) {
@@ -176,6 +173,27 @@ export default function ManageSpaces() {
 
   return (
     <List isLoading={configLoading}>
+      {isFirstTime && (
+        <List.Section title="👋 Welcome to Manage Spaces">
+          <List.Item
+            title="Learn How to Find Space IDs"
+            subtitle="First time here? Learn how to identify and manage your spaces"
+            icon="💡"
+            actions={
+              <ActionPanel>
+                <Action title="Show Tutorial" icon={Icon.QuestionMark} onAction={handleTutorialViewed} />
+                <Action
+                  title="Skip Tutorial"
+                  onAction={async () => {
+                    await LocalStorage.setItem("hasSeenSpaceIdTutorial", "true");
+                    setIsFirstTime(false);
+                  }}
+                />
+              </ActionPanel>
+            }
+          />
+        </List.Section>
+      )}
       <List.Section title={`${config.spaces.length} Space${config.spaces.length === 1 ? "" : "s"} Found`}>
         {config.spaces.map((space) => {
           const displayName = config.getSpaceDisplayName(space.spaceID);
