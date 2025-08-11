@@ -8,7 +8,7 @@ You need [Craft](https://www.craft.do/) installed on your Mac for this extension
 
 ## Features
 
-### 🔍 Block Search
+### 🔍 Blocks Search
 
 Search through all your Craft documents across all locally available spaces with fast full-text search.
 
@@ -16,7 +16,7 @@ Search through all your Craft documents across all locally available spaces with
 - Results from all spaces are included
 - Jump directly to documents in Craft
 
-![Block Search](./metadata/craft-search.png)
+![Blocks Search](./metadata/craft-search.png)
 
 ### 📅 Daily Notes
 
