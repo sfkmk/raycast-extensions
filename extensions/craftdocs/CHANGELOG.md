@@ -10,8 +10,15 @@
 - Added ability to create non-existing Daily Notes in "Blocks Search".
 - Improved descriptions for better conciseness.
 - Fixed tutorial for "Manage Spaces" command on first-time open.
+- Improved visibility of Tasks from the Task Inbox in "Blocks Search" results with a dedicated icon.
+- Improved visibility of Daily Notes in "Blocks Search" results with a dedicated icon.
+- Added several of Craft's navigational entries to "Blocks Search" that can be queried: "Starred Documents", "All Tags", "All Docs", "Organize", "Unsorted", "Recently Deleted", "Shared with Me"
+- Added a preference option for "Blocks Search" to exclude Craft's navigational entries from search results.
+- Consolidated some known duplicate database entries in "Blocks Search".
+- Enhanced searchability for craft navigational entries in "Blocks Search"; nearly any combination of terms used for these navigational entries will surface them in search results.
+- Added support in "Blocks Search" to query tasks from "Task Inbox" or "Task Logbook" using "todo" or "task"; e.g. searching "todo Nadine" returns "Buy Nadine a present".
 
-## [Feature] - {PR_MERGE_DATE}
+## [Feature] - 2025-08-11
 
 - Added a new `Add to Daily Note` command with intelligent daily note detection and configurable append/prepend position.
 - Added timestamp toggle and customizable prefix/suffix options for flexible content formatting.

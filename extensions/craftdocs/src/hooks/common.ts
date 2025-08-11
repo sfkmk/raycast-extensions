@@ -202,3 +202,93 @@ const sqlValueArr2Block =
   (spaceID: string) =>
   ([id, content, type, entityType, documentID]: SqlValue[]): Block =>
     ({ id, content, type, entityType, documentID, spaceID } as Block);
+
+/**
+ * Combines multiple Block[] arrays while avoiding duplicates.
+ * Used to merge results from main search, expanded searches, and ISO date searches.
+ *
+ * @param mainResults - Primary search results
+ * @param expandedResults - Results from expanded task queries
+ * @param isoResults - Optional results from ISO date search
+ * @returns Combined and deduplicated Block array
+ */
+export function combineBlockResults(mainResults: Block[], expandedResults: Block[], isoResults?: Block[]): Block[] {
+  const combined = mainResults ? [...mainResults] : [];
+  const seenBlocks = new Set<string>();
+
+  // Track main results
+  combined.forEach((block) => {
+    seenBlocks.add(`${block.spaceID}-${block.id}`);
+  });
+
+  // Add expanded results (deduplicated)
+  if (expandedResults) {
+    expandedResults.forEach((block) => {
+      const blockKey = `${block.spaceID}-${block.id}`;
+      if (!seenBlocks.has(blockKey)) {
+        seenBlocks.add(blockKey);
+        combined.push(block);
+      }
+    });
+  }
+
+  // Add ISO results (deduplicated)
+  if (isoResults) {
+    isoResults.forEach((block) => {
+      const blockKey = `${block.spaceID}-${block.id}`;
+      if (!seenBlocks.has(blockKey)) {
+        seenBlocks.add(blockKey);
+        combined.push(block);
+      }
+    });
+  }
+
+  return combined;
+}
+
+/**
+ * Combines multiple DocBlock[] arrays while avoiding duplicates.
+ * Used to merge results from main document search, expanded searches, and ISO date searches.
+ *
+ * @param mainResults - Primary document search results
+ * @param expandedResults - Results from expanded task queries
+ * @param isoResults - Optional results from ISO date search
+ * @returns Combined and deduplicated DocBlock array
+ */
+export function combineDocBlockResults(
+  mainResults: DocBlock[],
+  expandedResults: DocBlock[],
+  isoResults?: DocBlock[]
+): DocBlock[] {
+  const combined = mainResults ? [...mainResults] : [];
+  const seenBlocks = new Set<string>();
+
+  // Track main results
+  combined.forEach((docBlock) => {
+    seenBlocks.add(`${docBlock.block.spaceID}-${docBlock.block.id}`);
+  });
+
+  // Add expanded results (deduplicated)
+  if (expandedResults) {
+    expandedResults.forEach((docBlock) => {
+      const blockKey = `${docBlock.block.spaceID}-${docBlock.block.id}`;
+      if (!seenBlocks.has(blockKey)) {
+        seenBlocks.add(blockKey);
+        combined.push(docBlock);
+      }
+    });
+  }
+
+  // Add ISO results (deduplicated)
+  if (isoResults) {
+    isoResults.forEach((docBlock) => {
+      const blockKey = `${docBlock.block.spaceID}-${docBlock.block.id}`;
+      if (!seenBlocks.has(blockKey)) {
+        seenBlocks.add(blockKey);
+        combined.push(docBlock);
+      }
+    });
+  }
+
+  return combined;
+}

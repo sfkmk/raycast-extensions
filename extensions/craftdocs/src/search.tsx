@@ -11,7 +11,8 @@ import useDocumentSearch from "./hooks/useDocumentSearch";
 import ListDocBlocks from "./components/ListDocBlocks";
 import { parseMultilingualDate } from "./utils/multilingualDateParser";
 import { formatCraftInternalDate } from "./utils/dateTimeFormatter";
-import { prioritizeDailyNotes } from "./hooks/common";
+import { prioritizeDailyNotes, combineBlockResults, combineDocBlockResults } from "./hooks/common";
+import { useExpandedSearch, useExpandedDocumentSearch } from "./hooks/useExpandedSearch";
 import Style = Toast.Style;
 
 const cache = new Cache();
@@ -40,7 +41,7 @@ function SpaceDropdown({ value, spaces, onSpaceChange }: SpaceDropdownProps) {
   );
 }
 
-const { useDetailedView } = getSearchPreferences();
+const { useDetailedView, enableCustomEntries } = getSearchPreferences();
 const { dateDisplayFormat, showCurrentYear } = getDateFormatPreferences();
 
 // noinspection JSUnusedGlobalSymbols
@@ -149,19 +150,22 @@ const handleListView = ({
 }: ViewParams) => {
   const { resultsLoading, results } = useSearch(db, query, parsedDate);
 
+  // Get expanded task search results using the new hook
+  const { resultsLoading: expandedResultsLoading, results: expandedResults } = useExpandedSearch(
+    db,
+    query,
+    parsedDate,
+    enableCustomEntries
+  );
+
   // If we have a parsed date, also search for the ISO format
   const isoDateQuery = parsedDate ? formatCraftInternalDate(parsedDate) : "";
   const { resultsLoading: isoResultsLoading, results: isoResults } = useSearch(db, isoDateQuery, parsedDate);
 
-  // Combine results, avoiding duplicates by block ID
-  const combinedResults = results ? [...results] : [];
-  if (isoResults && parsedDate) {
-    isoResults.forEach((isoBlock) => {
-      if (!combinedResults.some((block) => block.id === isoBlock.id && block.spaceID === isoBlock.spaceID)) {
-        combinedResults.push(isoBlock);
-      }
-    });
-  }
+  // Combine results using shared utility
+  const expandedResultsToUse = enableCustomEntries ? expandedResults : [];
+  const isoResultsToUse = parsedDate ? isoResults : undefined;
+  const combinedResults = combineBlockResults(results || [], expandedResultsToUse, isoResultsToUse);
 
   // Re-prioritize combined results to ensure daily notes are at the top
   const prioritizedCombinedResults = parsedDate ? prioritizeDailyNotes(combinedResults, parsedDate) : combinedResults;
@@ -179,7 +183,9 @@ const handleListView = ({
 
   const listBlocks = (
     <ListBlocks
-      isLoading={resultsLoading || (parsedDate ? isoResultsLoading : false)}
+      isLoading={
+        resultsLoading || (parsedDate ? isoResultsLoading : false) || (enableCustomEntries && expandedResultsLoading)
+      }
       onSearchTextChange={setQuery}
       blocks={filteredResults}
       query={query}
@@ -187,6 +193,7 @@ const handleListView = ({
       parsedDate={parsedDate}
       dateDisplayFormat={dateDisplayFormat}
       showCurrentYear={showCurrentYear}
+      enableCustomEntries={enableCustomEntries}
       searchBarAccessory={
         showSpaceDropdown ? (
           <SpaceDropdown spaces={spaces} onSpaceChange={handleSpaceChange} value={selectedSpace} />
@@ -214,21 +221,22 @@ const handleDetailedView = ({
 }: ViewParams) => {
   const { resultsLoading, results } = useDocumentSearch(db, query, parsedDate);
 
+  // Get expanded task search results using the new hook
+  const { resultsLoading: expandedResultsLoading, results: expandedDocResults } = useExpandedDocumentSearch(
+    db,
+    query,
+    parsedDate,
+    enableCustomEntries
+  );
+
   // If we have a parsed date, also search for the ISO format
   const isoDateQuery = parsedDate ? formatCraftInternalDate(parsedDate) : "";
   const { resultsLoading: isoResultsLoading, results: isoResults } = useDocumentSearch(db, isoDateQuery, parsedDate);
 
-  // Combine results, avoiding duplicates by block ID
-  const combinedResults = results ? [...results] : [];
-  if (isoResults && parsedDate) {
-    isoResults.forEach((isoDoc) => {
-      if (
-        !combinedResults.some((doc) => doc.block.id === isoDoc.block.id && doc.block.spaceID === isoDoc.block.spaceID)
-      ) {
-        combinedResults.push(isoDoc);
-      }
-    });
-  }
+  // Combine results using shared utility
+  const expandedResultsToUse = enableCustomEntries ? expandedDocResults : [];
+  const isoResultsToUse = parsedDate ? isoResults : undefined;
+  const combinedResults = combineDocBlockResults(results || [], expandedResultsToUse, isoResultsToUse);
 
   // Sort combined results to prioritize daily notes
   const sortedCombinedResults = parsedDate
@@ -254,7 +262,9 @@ const handleDetailedView = ({
 
   const listDocuments = (
     <ListDocBlocks
-      resultsLoading={resultsLoading || (parsedDate ? isoResultsLoading : false)}
+      resultsLoading={
+        resultsLoading || (parsedDate ? isoResultsLoading : false) || (enableCustomEntries && expandedResultsLoading)
+      }
       setQuery={setQuery}
       results={filteredResults}
       query={query}

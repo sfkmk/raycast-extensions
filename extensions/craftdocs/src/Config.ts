@@ -40,7 +40,6 @@ export default class Config {
         .filter((str) => str.match(databasesForExistingRealms))
         .map((str) => this.makeSpaceFromStr(pathToIndexDatabases, str));
     } catch (e) {
-      console.debug(`failed getting files: ${e}`);
       this.spaces = [];
     }
   }
@@ -159,7 +158,7 @@ export default class Config {
         this.spaceSettings = {};
       }
     } catch (e) {
-      console.debug(`Failed to load space settings: ${e}`);
+      // Failed to load space settings, using defaults
       this.spaceSettings = {};
     }
   };
@@ -168,7 +167,7 @@ export default class Config {
     try {
       writeFileSync(SPACES_CONFIG_FILE, JSON.stringify(this.spaceSettings, null, 2));
     } catch (e) {
-      console.debug(`Failed to save space settings: ${e}`);
+      // Failed to save space settings
     }
   };
 }

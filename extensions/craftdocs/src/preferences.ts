@@ -13,6 +13,7 @@ export interface GlobalPreferences {
 
 export interface SearchPreferences {
   useDetailedView: boolean;
+  enableCustomEntries: boolean;
 }
 
 export interface DailyNotePreferences {

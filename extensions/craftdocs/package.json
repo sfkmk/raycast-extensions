@@ -68,6 +68,15 @@
           "default": false,
           "label": "Use detailed view",
           "description": "Changes the view of the search to show info about documents. It is messy!"
+        },
+        {
+          "title": "Custom Entries",
+          "name": "enableCustomEntries",
+          "type": "checkbox",
+          "required": false,
+          "default": true,
+          "label": "Enable Craft's navigational entries",
+          "description": "This adds entries such as Starred Documents, All Tags, and others with appropriate result biasing. Disable this feature for database-only search behavior."
         }
       ]
     },

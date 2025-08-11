@@ -38,7 +38,6 @@ export default function useSearch({ databasesLoading, databases }: UseDB, text: 
 
     const results = prioritizeDailyNotes(blocksOfSpaces.flat(), parsedDate);
     setState({ results, resultsLoading: false });
-    console.debug(`got ${results.length} results for query search '${text}'`);
   }, [databasesLoading, text, parsedDate]);
 
   return state;

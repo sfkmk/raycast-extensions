@@ -7,7 +7,7 @@ import { formatDailyNoteTitle, formatCraftInternalDate } from "../utils/dateTime
 
 type ListDocBlocksParams = {
   resultsLoading: boolean;
-  setQuery: (query: string) => void;
+  setQuery: (text: string) => void;
   results: DocBlock[];
   query: string;
   config: Config | null;
@@ -19,8 +19,8 @@ type ListDocBlocksParams = {
 
 export default function ListDocBlocks({
   resultsLoading,
-  results,
   setQuery,
+  results,
   query,
   config,
   parsedDate,

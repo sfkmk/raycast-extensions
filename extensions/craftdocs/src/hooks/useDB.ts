@@ -33,7 +33,9 @@ export default function useDB({ config, configLoading }: UseConfig) {
           databasesLoading: false,
         })
       )
-      .then(() => console.debug("initialized databases " + config.spaces.map((space) => space.spaceID).join(", ")));
+      .then(() => {
+        // Database initialization complete
+      });
   }, [configLoading]);
 
   return { databases, databasesLoading, spaces: config?.spaces };
