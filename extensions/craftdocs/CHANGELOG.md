@@ -2,8 +2,8 @@
 
 ## [UX improvements] - {PR_MERGE_DATE}
 
-- Hide subtitles for documents in "Blocks Search" results; show subtitles only for blocks.
-- Swap the display of title and subtitle for block entries in "Blocks Search" to reflect user intent; title=query occurrence, subtitle=parent document.
+- Hide (redundant) subtitles for documents in "Blocks Search" results; show subtitles only for blocks.
+- Swap the display of title and subtitle for block entries in "Blocks Search" to reflect user intent; title=query occurrence, subtitle=parent-document.
 - Queries for date-like patterns prioritize Daily Note results in "Blocks Search".
 - Enhanced standard and natural language date parsing; date parsing now understands many LTR languages.
 - Added natural language date parsing in "Blocks Search".
@@ -17,6 +17,7 @@
 - Consolidated some known duplicate database entries in "Blocks Search".
 - Enhanced searchability for craft navigational entries in "Blocks Search"; nearly any combination of terms used for these navigational entries will surface them in search results.
 - Added support in "Blocks Search" to query tasks from "Task Inbox" or "Task Logbook" using "todo" or "task"; e.g. searching "todo Nadine" returns "Buy Nadine a present".
+
 
 ## [Feature] - 2025-08-11
 
