@@ -4,6 +4,7 @@ import { join } from "path";
 import { readFileSync } from "fs";
 import { environment } from "@raycast/api";
 import { useEffect, useState } from "react";
+import { SEARCH_CONSTANTS } from "../constants";
 
 export type UseDB = {
   databasesLoading: boolean;
@@ -32,14 +33,16 @@ export default function useDB({ config, configLoading }: UseConfig) {
           databasesLoading: false,
         })
       )
-      .then(() => console.debug("initialized databases " + config.spaces.map((space) => space.spaceID).join(", ")));
+      .then(() => {
+        // Database initialization complete
+      });
   }, [configLoading]);
 
   return { databases, databasesLoading, spaces: config?.spaces };
 }
 
 const loadDb = async (path: string): Promise<Database> => {
-  const wasmBinary = readFileSync(join(environment.assetsPath, "sql-wasm-fts5.wasm"));
+  const wasmBinary = readFileSync(join(environment.assetsPath, SEARCH_CONSTANTS.WASM_FILENAME));
   const SQL = await initSqlJs({ wasmBinary });
   return new SQL.Database(readFileSync(path));
 };

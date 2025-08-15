@@ -2,7 +2,8 @@ import useAppExists from "./hooks/useAppExists";
 import useConfig from "./hooks/useConfig";
 import { List, Cache } from "@raycast/api";
 import { useState, useEffect } from "react";
-import * as chrono from "chrono-node";
+import { parseMultilingualDate } from "./utils/multilingualDateParser";
+import { getPrimaryLanguage } from "./preferences";
 import { DailyNotes } from "./components/DailyNotes";
 import { CACHE_KEYS } from "./constants";
 
@@ -67,7 +68,24 @@ export default function dailyNotes() {
   const parseDate = (text: string) => {
     setQuery(text);
 
-    const date = chrono.parseDate(text);
+    const parseTextToDate = (text: string): Date | null => {
+      if (!text || text.trim().length === 0) return null;
+
+      const today = new Date();
+
+      // Use multilingual parser with daily notes optimized options
+      const preferredLanguage = getPrimaryLanguage();
+      const result = parseMultilingualDate(text, {
+        referenceDate: today,
+        forwardDate: false, // Let natural parsing logic determine appropriate dates
+        currentYearBias: false, // Don't bias toward current year for daily notes
+        locale: preferredLanguage, // Use user's preferred language from preferences
+      });
+
+      return result;
+    };
+
+    const date = parseTextToDate(text);
     if (!date) {
       setDate(undefined);
       return;

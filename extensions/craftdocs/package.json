@@ -19,10 +19,37 @@
       "name": "application",
       "type": "appPicker",
       "required": false,
-      "title": "Application to search in",
-      "description": "It is useful for selecting different distribution of Craft, If you don't choose anything, it will select non-Setapp version by default.",
+      "title": "Craft Application",
+      "description": "Select your Craft app distribution. Choose the Setapp version if you use Craft through Setapp; leave as default for the standard version.",
       "default": "com.lukilabs.lukiapp",
       "placeholder": "com.lukilabs.lukiapp"
+    },
+    {
+      "name": "supportedLanguages",
+      "type": "textfield",
+      "required": false,
+      "title": "Supported Languages",
+      "description": "Languages for smart date recognition when searching and creating daily notes. Enter comma-separated language codes (e.g., en,es,fr,de). Limiting to your preferred languages improves performance.",
+      "default": "en",
+      "placeholder": "en,es,fr,de"
+    },
+    {
+      "name": "dateDisplayFormat",
+      "type": "textfield",
+      "title": "Date Display Format",
+      "required": false,
+      "description": "Customize how dates appear in daily notes and search results. Examples: 'Mon 15. Jul 2025' or 'Monday, July 15, 2025'. Use tokens like EEE (Mon), EEEE (Monday), MMM (Jul), MMMM (July), d (15), dd (15), yyyy (2025).",
+      "default": "EEE d. MMM yyyy",
+      "placeholder": "EEE d. MMM yyyy"
+    },
+    {
+      "name": "showCurrentYear",
+      "type": "checkbox",
+      "title": "Show Current Year",
+      "required": false,
+      "description": "By default, the year is hidden for dates in the current year to reduce clutter. Enable this to always show the year, even for current year dates.",
+      "default": false,
+      "label": "Always display year for current year dates"
     }
   ],
   "commands": [
@@ -30,7 +57,7 @@
       "name": "search",
       "title": "Blocks Search",
       "subtitle": "Craft",
-      "description": "Search documents in Craft",
+      "description": "Search your documents in Craft",
       "mode": "view",
       "preferences": [
         {
@@ -41,6 +68,15 @@
           "default": false,
           "label": "Use detailed view",
           "description": "Changes the view of the search to show info about documents. It is messy!"
+        },
+        {
+          "title": "Custom Entries",
+          "name": "enableCustomEntries",
+          "type": "checkbox",
+          "required": false,
+          "default": true,
+          "label": "Enable Craft's navigational entries",
+          "description": "This adds entries such as Starred Documents, All Tags, and others with appropriate result biasing. Disable this feature for database-only search behavior."
         }
       ]
     },
@@ -124,7 +160,9 @@
   ],
   "dependencies": {
     "@raycast/api": "^1.47.3",
-    "chrono-node": "^2.3.9"
+    "any-date-parser": "^2.2.3",
+    "chrono-node": "^2.8.4",
+    "compromise-dates": "^3.7.1"
   },
   "devDependencies": {
     "@types/node": "~16.10.0",

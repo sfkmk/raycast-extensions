@@ -5,6 +5,7 @@ import {
   buildMatchQuery,
   documentize,
   limit,
+  prioritizeDailyNotes,
   searchBlocks,
   searchQuery,
   searchQueryDocumentsOnEmptyParams,
@@ -20,7 +21,7 @@ export type DocBlock = {
   blocks: Block[];
 };
 
-export default function useDocumentSearch({ databasesLoading, databases }: UseDB, text: string) {
+export default function useDocumentSearch({ databasesLoading, databases }: UseDB, text: string, parsedDate?: Date) {
   const [state, setState] = useState<UseDocumentSearch>({ resultsLoading: true, results: [] });
 
   useEffect(() => {
@@ -36,8 +37,15 @@ export default function useDocumentSearch({ databasesLoading, databases }: UseDB
       .map(({ database, spaceID }) => ({ database, spaceID, blocks: searchBlocks(database, spaceID, query, params) }))
       .map(({ database, spaceID, blocks }) => documentize(database, spaceID, blocks));
 
-    setState({ resultsLoading: false, results: results.flat() });
-  }, [databasesLoading, text]);
+    // Apply daily note prioritization to the flattened results
+    const flatResults = results.flat();
+    const prioritizedResults = flatResults.map((docBlock) => ({
+      ...docBlock,
+      blocks: prioritizeDailyNotes(docBlock.blocks, parsedDate),
+    }));
+
+    setState({ resultsLoading: false, results: prioritizedResults });
+  }, [databasesLoading, text, parsedDate]);
 
   return state;
 }
