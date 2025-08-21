@@ -1,6 +1,6 @@
 import { BindParams, Database, SqlValue } from "../../assets/sql-wasm-fts5";
-import { Block } from "./useSearch";
-import { DocBlock } from "./useDocumentSearch";
+import { Block } from "../hooks/useSearch";
+import { DocBlock } from "../hooks/useDocumentSearch";
 import { SEARCH_CONSTANTS } from "../constants";
 
 export const searchQuery = `
@@ -47,7 +47,7 @@ export const searchBlocks = (database: Database, spaceID: string, query: string,
       .flat()
       .map(sqlValueArr2Block(spaceID));
   } catch (e) {
-    console.error(`db exec error: ${e}`);
+    console.error(`db exec error`);
 
     return [];
   }
@@ -111,7 +111,7 @@ export const backfillBlocksWithDocumentNames = (database: Database, blocks: Bloc
 
     return blocks;
   } catch (e) {
-    console.error(`db exec error: ${e}`);
+    console.error(`db exec error`);
 
     return [];
   }
@@ -133,7 +133,7 @@ export const documentize = (database: Database, spaceID: string, blocks: Block[]
       .flat()
       .reduce(compactBlocksToDocBlocks(spaceID), [] as DocBlock[]);
   } catch (e) {
-    console.error(`db exec error: ${e}`);
+    console.error(`db exec error`);
 
     return [];
   }

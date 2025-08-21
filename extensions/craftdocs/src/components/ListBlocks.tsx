@@ -4,6 +4,7 @@ import { Block } from "../hooks/useSearch";
 import Config from "../Config";
 import CreateDocumentItem from "./CreateDocumentItem";
 import { formatDailyNoteTitle, formatCraftInternalDate } from "../utils/dateTimeFormatter";
+import { ensureSafeTitle } from "../utils/safety";
 import {
   filterCustomEntries,
   isTaskInboxDocument,
@@ -13,7 +14,7 @@ import {
   shouldBiasEntry,
   applyCentralizedBias,
   ExtendedBlock,
-} from "../hooks/customEntries";
+} from "../utils/customEntries";
 
 type ListBlocksParams = {
   isLoading: boolean;
@@ -155,7 +156,7 @@ const CustomEntryItem = ({
   return (
     <List.Item
       icon={entry.icon}
-      title={entry.title}
+      title={ensureSafeTitle(entry.title, [`Entry title unknown`])}
       accessories={
         showSpaceInfo
           ? [
@@ -242,7 +243,7 @@ const BlockItem = ({
     <List.Item
       icon={getIcon()}
       subtitle={block.entityType === "document" ? undefined : formattedDocumentName}
-      title={formattedTitle}
+      title={ensureSafeTitle(formattedTitle, [block.documentName, block.content, `Document ${block.id}`])}
       accessories={
         showSpaceInfo
           ? [

@@ -4,6 +4,7 @@ import { DocBlock } from "../hooks/useDocumentSearch";
 import CreateDocumentItem from "./CreateDocumentItem";
 import Config from "../Config";
 import { formatDailyNoteTitle, formatCraftInternalDate } from "../utils/dateTimeFormatter";
+import { ensureSafeTitle } from "../utils/safety";
 
 type ListDocBlocksParams = {
   resultsLoading: boolean;
@@ -43,7 +44,11 @@ export default function ListDocBlocks({
         return (
           <List.Item
             key={`${doc.block.spaceID}-${doc.block.id}`}
-            title={formattedTitle}
+            title={ensureSafeTitle(formattedTitle, [
+              doc.block.content,
+              doc.block.documentName,
+              `Document ${doc.block.id}`,
+            ])}
             accessories={
               showSpaceInfo
                 ? [

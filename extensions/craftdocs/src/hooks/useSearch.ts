@@ -8,7 +8,7 @@ import {
   searchBlocks,
   searchQuery,
   searchQueryOnEmptyParams,
-} from "./common";
+} from "../utils/searchHelpers";
 
 export type Block = {
   id: string;

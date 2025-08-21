@@ -7,11 +7,12 @@ import useDB, { UseDB } from "./hooks/useDB";
 import { CACHE_KEYS, APP_CONSTANTS } from "./constants";
 import { Action, ActionPanel, List, showToast, Toast, openExtensionPreferences, Cache } from "@raycast/api";
 import { getSearchPreferences, getDateFormatPreferences, getPrimaryLanguage } from "./preferences";
+import { ensureSafeTitle } from "./utils/safety";
 import useDocumentSearch from "./hooks/useDocumentSearch";
 import ListDocBlocks from "./components/ListDocBlocks";
 import { parseMultilingualDate } from "./utils/multilingualDateParser";
 import { formatCraftInternalDate } from "./utils/dateTimeFormatter";
-import { prioritizeDailyNotes, combineBlockResults, combineDocBlockResults } from "./hooks/common";
+import { prioritizeDailyNotes, combineBlockResults, combineDocBlockResults } from "./utils/searchHelpers";
 import { useExpandedSearch, useExpandedDocumentSearch } from "./hooks/useExpandedSearch";
 import Style = Toast.Style;
 
@@ -34,7 +35,11 @@ function SpaceDropdown({ value, spaces, onSpaceChange }: SpaceDropdownProps) {
       <List.Dropdown.Section title="Spaces">
         <List.Dropdown.Item key="all" title="All spaces" value="all" />
         {spaces.map((space) => (
-          <List.Dropdown.Item key={space.id} title={space.title} value={space.id} />
+          <List.Dropdown.Item
+            key={space.id}
+            title={ensureSafeTitle(space.title, [`Space ${space.id}`])}
+            value={space.id}
+          />
         ))}
       </List.Dropdown.Section>
     </List.Dropdown>

@@ -2,12 +2,13 @@ import { homedir } from "os";
 import { readdirSync, existsSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import { BUNDLE_IDS } from "./constants";
+import { ensureCraftPath, ensureSafeRegex } from "./utils/safety";
 
 const [craftDataRoot] = BUNDLE_IDS.map((id) =>
   path.join(homedir(), `/Library/Containers/${id}/Data/Library/Application Support/${id}`)
 ).filter(existsSync);
-const searchPath = path.join(craftDataRoot, "Search");
-const SPACES_CONFIG_FILE = path.join(craftDataRoot, "raycast-spaces-config.json");
+const searchPath = ensureCraftPath(craftDataRoot, "Search");
+const SPACES_CONFIG_FILE = ensureCraftPath(craftDataRoot, "raycast-spaces-config.json");
 
 type SpaceSQLite = {
   path: string;
@@ -30,6 +31,13 @@ export default class Config {
 
   constructor() {
     try {
+      // Early return if Craft is not installed or directories don't exist
+      if (!searchPath) {
+        this.spaces = [];
+        this.spaceSettings = {};
+        return;
+      }
+
       const pathToIndexDatabases = searchPath.replace("~", homedir());
       const databasesForExistingRealms = this.buildFilterRegexForExistingRealms();
 
@@ -47,6 +55,11 @@ export default class Config {
   primarySpace = () => this.spaces.find((space) => space.primary);
 
   private buildFilterRegexForExistingRealms = (): RegExp => {
+    // Handle case where Craft is not installed
+    if (!craftDataRoot) {
+      return ensureSafeRegex("");
+    }
+
     const root = craftDataRoot.replace("~", homedir());
 
     const regexIDsPart = readdirSync(root)
@@ -55,7 +68,7 @@ export default class Config {
       .filter((str) => str)
       .join("|");
 
-    return new RegExp(`(?:${regexIDsPart})[^.]*.sqlite$`);
+    return ensureSafeRegex(`(?:${regexIDsPart})[^.]*.sqlite$`);
   };
 
   private selectRealmFiles = (str: string): boolean => str.match(/\.realm$/) !== null;
@@ -151,6 +164,12 @@ export default class Config {
 
   private loadSpaceSettings = (): void => {
     try {
+      // Handle case where Craft is not installed
+      if (!SPACES_CONFIG_FILE) {
+        this.spaceSettings = {};
+        return;
+      }
+
       if (existsSync(SPACES_CONFIG_FILE)) {
         const data = readFileSync(SPACES_CONFIG_FILE, "utf-8");
         this.spaceSettings = JSON.parse(data);
@@ -165,6 +184,11 @@ export default class Config {
 
   private saveSpaceSettings = (): void => {
     try {
+      // Handle case where Craft is not installed
+      if (!SPACES_CONFIG_FILE) {
+        return;
+      }
+
       writeFileSync(SPACES_CONFIG_FILE, JSON.stringify(this.spaceSettings, null, 2));
     } catch (e) {
       // Failed to save space settings

@@ -9,7 +9,7 @@ import {
   searchBlocks,
   searchQuery,
   searchQueryDocumentsOnEmptyParams,
-} from "./common";
+} from "../utils/searchHelpers";
 
 type UseDocumentSearch = {
   resultsLoading: boolean;

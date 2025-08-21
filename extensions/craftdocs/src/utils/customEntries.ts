@@ -1,6 +1,6 @@
 import { Icon } from "@raycast/api";
 import { formatCraftInternalDate, isISODatePattern } from "../utils/dateTimeFormatter";
-import { Block } from "./useSearch";
+import { Block } from "../hooks/useSearch";
 
 // Type for extended blocks that can include custom entries
 export type ExtendedBlock = Block | (PopulatedCustomEntry & { isCustomEntry: true });

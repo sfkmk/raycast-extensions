@@ -6,6 +6,7 @@ import { parseMultilingualDate } from "./utils/multilingualDateParser";
 import { getPrimaryLanguage } from "./preferences";
 import { DailyNotes } from "./components/DailyNotes";
 import { CACHE_KEYS } from "./constants";
+import { ensureSafeTitle } from "./utils/safety";
 
 const cache = new Cache();
 
@@ -28,7 +29,11 @@ function SpaceDropdown({
     >
       <List.Dropdown.Section title="Spaces">
         {spaces.map((space) => (
-          <List.Dropdown.Item key={space.id} title={space.title} value={space.id} />
+          <List.Dropdown.Item
+            key={space.id}
+            title={ensureSafeTitle(space.title, [`Space ${space.id}`])}
+            value={space.id}
+          />
         ))}
       </List.Dropdown.Section>
     </List.Dropdown>
