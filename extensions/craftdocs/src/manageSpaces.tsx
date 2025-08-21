@@ -125,6 +125,68 @@ export default function ManageSpaces() {
     }
   };
 
+  const handleSetAsPrimary = async (spaceID: string) => {
+    if (!config) return;
+
+    const space = config.spaces.find((s) => s.spaceID === spaceID);
+    if (!space) return;
+
+    if (!space.isEnabled) {
+      await showToast({
+        title: "Cannot set disabled space as primary",
+        message: "Enable the space first before setting it as primary",
+        style: Toast.Style.Failure,
+      });
+      return;
+    }
+
+    const confirmed = await confirmAlert({
+      title: "Set as Primary Space",
+      message: `Set "${config.getSpaceDisplayName(
+        spaceID
+      )}" as your primary space? This will be used as the default space for various commands.`,
+      primaryAction: { title: "Set as Primary", style: Alert.ActionStyle.Default },
+    });
+
+    if (confirmed) {
+      try {
+        config.setPrimarySpace(spaceID);
+        refreshConfig();
+        showToast({
+          title: "Primary space updated",
+          message: `"${config.getSpaceDisplayName(spaceID)}" is now your primary space`,
+          style: Toast.Style.Success,
+        });
+      } catch (error) {
+        showToast({
+          title: "Failed to set primary space",
+          message: error instanceof Error ? error.message : "Unknown error",
+          style: Toast.Style.Failure,
+        });
+      }
+    }
+  };
+
+  const handleResetPrimarySpace = async () => {
+    if (!config) return;
+
+    const confirmed = await confirmAlert({
+      title: "Reset Primary Space",
+      message: "Reset to use the original primary space (determined by Craft's internal structure)?",
+      primaryAction: { title: "Reset", style: Alert.ActionStyle.Default },
+    });
+
+    if (confirmed) {
+      config.clearCustomPrimarySpace();
+      refreshConfig();
+      showToast({
+        title: "Primary space reset",
+        message: "Now using original primary space",
+        style: Toast.Style.Success,
+      });
+    }
+  };
+
   if (!appExists.appExists || !config) {
     return (
       <List
@@ -198,6 +260,10 @@ export default function ManageSpaces() {
         {config.spaces.map((space) => {
           const displayName = config.getSpaceDisplayName(space.spaceID);
           const isCustomNamed = space.customName !== null;
+          const currentPrimary = config.primarySpace();
+          const isCurrentPrimary = currentPrimary?.spaceID === space.spaceID;
+          const originalPrimarySpace = config.spaces.find((s) => s.primary);
+          const isCurrentPrimaryCustom = currentPrimary?.spaceID !== originalPrimarySpace?.spaceID;
 
           return (
             <List.Item
@@ -205,7 +271,18 @@ export default function ManageSpaces() {
               title={displayName}
               subtitle={isCustomNamed ? `ID: ${space.spaceID}` : undefined}
               accessories={[
-                ...(space.primary ? [{ tag: "Primary" }] : []),
+                ...(isCurrentPrimary
+                  ? [
+                      {
+                        tag: {
+                          value: isCurrentPrimaryCustom ? "Primary (Custom)" : "Primary (Original)",
+                          color: "#FFA500",
+                        },
+                      },
+                    ]
+                  : space.primary
+                  ? [{ tag: { value: "Original Primary", color: "#D3D3D3" } }]
+                  : []),
                 {
                   tag: {
                     value: space.isEnabled ? "Enabled" : "Disabled",
@@ -222,22 +299,44 @@ export default function ManageSpaces() {
                       <RenameSpaceForm spaceID={space.spaceID} currentName={space.customName} onRename={handleRename} />
                     }
                   />
-                  <Action
-                    title={space.isEnabled ? "Disable Space" : "Enable Space"}
-                    icon={space.isEnabled ? Icon.EyeDisabled : Icon.Eye}
-                    onAction={() => handleToggleEnabled(space.spaceID, space.isEnabled)}
-                  />
-                  <Action.CopyToClipboard
-                    title="Copy Space ID"
-                    content={space.spaceID}
-                    shortcut={{ modifiers: ["cmd"], key: "c" }}
-                  />
-                  <Action
-                    title="Show Space ID Tutorial"
-                    icon={Icon.QuestionMark}
-                    onAction={showSpaceIdTutorial}
-                    shortcut={{ modifiers: ["cmd"], key: "t" }}
-                  />
+                  <ActionPanel.Section>
+                    {!isCurrentPrimary && space.isEnabled && (
+                      <Action
+                        title="Set as Primary Space"
+                        icon={Icon.Star}
+                        onAction={() => handleSetAsPrimary(space.spaceID)}
+                        shortcut={{ modifiers: ["cmd"], key: "s" }}
+                      />
+                    )}
+                    {isCurrentPrimaryCustom && (
+                      <Action
+                        title="Reset to Original Primary"
+                        icon={Icon.RotateAntiClockwise}
+                        onAction={handleResetPrimarySpace}
+                        shortcut={{ modifiers: ["cmd", "shift"], key: "r" }}
+                      />
+                    )}
+                  </ActionPanel.Section>
+                  <ActionPanel.Section>
+                    <Action
+                      title={space.isEnabled ? "Disable Space" : "Enable Space"}
+                      icon={space.isEnabled ? Icon.EyeDisabled : Icon.Eye}
+                      onAction={() => handleToggleEnabled(space.spaceID, space.isEnabled)}
+                    />
+                  </ActionPanel.Section>
+                  <ActionPanel.Section>
+                    <Action.CopyToClipboard
+                      title="Copy Space ID"
+                      content={space.spaceID}
+                      shortcut={{ modifiers: ["cmd"], key: "c" }}
+                    />
+                    <Action
+                      title="Show Space ID Tutorial"
+                      icon={Icon.QuestionMark}
+                      onAction={showSpaceIdTutorial}
+                      shortcut={{ modifiers: ["cmd"], key: "t" }}
+                    />
+                  </ActionPanel.Section>
                 </ActionPanel>
               }
             />

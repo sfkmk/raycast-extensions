@@ -177,12 +177,8 @@ export default function AddToDailyNote() {
         value={formValues.spaceId}
         onChange={(value) => setFormValues((prev) => ({ ...prev, spaceId: value }))}
       >
-        {config?.getEnabledSpaces().map((space) => (
-          <Form.Dropdown.Item
-            key={space.spaceID}
-            value={space.spaceID}
-            title={config.getSpaceDisplayName(space.spaceID)}
-          />
+        {config?.getAllSpacesForDropdown().map((space) => (
+          <Form.Dropdown.Item key={space.id} value={space.id} title={space.title} />
         ))}
       </Form.Dropdown>
     </Form>

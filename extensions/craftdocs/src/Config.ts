@@ -23,6 +23,8 @@ type SpaceSettings = {
     customName: string | null;
     isEnabled: boolean;
   };
+} & {
+  _primarySpaceId?: string;
 };
 
 export default class Config {
@@ -52,7 +54,19 @@ export default class Config {
     }
   }
 
-  primarySpace = () => this.spaces.find((space) => space.primary);
+  primarySpace = () => {
+    // First check if user has set a custom primary space
+    const userPrimarySpaceId = this.spaceSettings._primarySpaceId;
+    if (userPrimarySpaceId) {
+      const userPrimarySpace = this.spaces.find((space) => space.spaceID === userPrimarySpaceId && space.isEnabled);
+      if (userPrimarySpace) {
+        return userPrimarySpace;
+      }
+    }
+
+    // Fall back to the original primary space (determined by file structure)
+    return this.spaces.find((space) => space.primary);
+  };
 
   private buildFilterRegexForExistingRealms = (): RegExp => {
     // Handle case where Craft is not installed
@@ -113,10 +127,10 @@ export default class Config {
     if (!space) return spaceID;
 
     if (space.customName) {
-      return space.primary ? `${space.customName} (Primary)` : space.customName;
+      return space.customName;
     }
 
-    return space.primary ? `${spaceID} (Primary)` : spaceID;
+    return spaceID;
   };
 
   setSpaceCustomName = (spaceID: string, customName: string | null): void => {
@@ -156,9 +170,13 @@ export default class Config {
   };
 
   getAllSpacesForDropdown = (): Array<{ id: string; title: string }> => {
+    const currentPrimary = this.primarySpace();
     return this.getEnabledSpaces().map((space) => ({
       id: space.spaceID,
-      title: this.getSpaceDisplayName(space.spaceID),
+      title:
+        currentPrimary?.spaceID === space.spaceID
+          ? `${this.getSpaceDisplayName(space.spaceID)} (Primary)`
+          : this.getSpaceDisplayName(space.spaceID),
     }));
   };
 
@@ -180,6 +198,27 @@ export default class Config {
       // Failed to load space settings, using defaults
       this.spaceSettings = {};
     }
+  };
+
+  setPrimarySpace = (spaceID: string): void => {
+    // Validate that the space exists and is enabled
+    const space = this.spaces.find((s) => s.spaceID === spaceID && s.isEnabled);
+    if (!space) {
+      throw new Error("Space not found or is disabled");
+    }
+
+    // Set the new primary space
+    this.spaceSettings._primarySpaceId = spaceID;
+    this.saveSpaceSettings();
+  };
+
+  clearCustomPrimarySpace = (): void => {
+    delete this.spaceSettings._primarySpaceId;
+    this.saveSpaceSettings();
+  };
+
+  getUserDefinedPrimarySpaceId = (): string | null => {
+    return this.spaceSettings._primarySpaceId || null;
   };
 
   private saveSpaceSettings = (): void => {

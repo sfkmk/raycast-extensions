@@ -17,6 +17,8 @@
 - `Blocks Search` Added support to query tasks from "Task Inbox" or "Task Logbook" using "todo" or "task"; e.g. searching "todo Nadine" returns "Buy Nadine a present".
 - `Manage Spaces` Fixed tutorial command on first-time open.
 - `General` Improved descriptions for better conciseness.
+- `Manage Spaces` Added the ability to change the "Primary" Space. This gives users the ability to change the behavior of other commands.
+- ⭐ `Open Daily Note` Added new command to quickly open today's Daily Note of the "Primary" Space. Perfect for a keyboard shortcut!
 
 ## [Feature] - 2025-08-11
 

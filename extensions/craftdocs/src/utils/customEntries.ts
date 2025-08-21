@@ -28,19 +28,19 @@ const CUSTOM_ENTRIES: CustomEntry[] = [
     title: "Starred Documents",
     alternatives: ["Favorite", "Favorites", "Stars", "Star", "Pinned", "Pins"],
     icon: Icon.Star,
-    urlTemplate: "craftdocs://openfolder?folderId=star&spaceId={spaceId}&title=Starred",
+    urlTemplate: "craftdocs://openfolder?folderId=star&spaceId={spaceId}",
   },
   {
     title: "All Tags",
     alternatives: ["Tags", "Tags Overview", "Overview", "Hashtags", "#", "All #", "All"],
     icon: Icon.Hashtag,
-    urlTemplate: "craftdocs://openfolder?folderId=all_tags&spaceId={spaceId}&title=All%20Tags",
+    urlTemplate: "craftdocs://openfolder?folderId=all_tags&spaceId={spaceId}",
   },
   {
     title: "All Docs",
     alternatives: ["Docs Overview", "Docs", "Overview", "Documents", "All Documents", "All"],
     icon: Icon.Folder,
-    urlTemplate: "craftdocs://openfolder?folderId=all&spaceId={spaceId}&title=All%20Docs",
+    urlTemplate: "craftdocs://openfolder?folderId=all&spaceId={spaceId}",
   },
   {
     title: "Organize",
@@ -55,7 +55,7 @@ const CUSTOM_ENTRIES: CustomEntry[] = [
       "Folders Overview",
     ],
     icon: Icon.Folder,
-    urlTemplate: "craftdocs://openfolder?folderId=organize&spaceId={spaceId}&title=Organize",
+    urlTemplate: "craftdocs://openfolder?folderId=organize&spaceId={spaceId}",
   },
   {
     title: "Unsorted",
@@ -67,13 +67,13 @@ const CUSTOM_ENTRIES: CustomEntry[] = [
     title: "Recently Deleted",
     alternatives: ["Trash", "Trash can", "Bin", "Deleted", "Removed"],
     icon: Icon.Trash,
-    urlTemplate: "craftdocs://openfolder?folderId=folder_trash&spaceId={spaceId}&title=Trash",
+    urlTemplate: "craftdocs://openfolder?folderId=folder_trash&spaceId={spaceId}",
   },
   {
     title: "Shared with Me",
     alternatives: ["Shared", "Shared with"],
     icon: Icon.Upload,
-    urlTemplate: "craftdocs://openfolder?folderId=shared_with_me&spaceId={spaceId}&title=Shared%20with%20Me",
+    urlTemplate: "craftdocs://openfolder?folderId=shared_with_me&spaceId={spaceId}",
   },
 ];
 

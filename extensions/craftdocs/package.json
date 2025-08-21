@@ -154,8 +154,14 @@
       "name": "manageSpaces",
       "title": "Manage Spaces",
       "subtitle": "Craft",
-      "description": "Manage your Craft spaces: rename, enable/disable",
+      "description": "Manage your Craft spaces: rename, enable/disable, and set which space is primary for opening daily notes",
       "mode": "view"
+    },
+    {
+      "name": "open-daily-note",
+      "title": "Open Daily Note",
+      "description": "Open today's Daily Note of your primary space in Craft. Use 'Manage Spaces' command to change which space is primary.",
+      "mode": "no-view"
     }
   ],
   "dependencies": {
