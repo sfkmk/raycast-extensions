@@ -1,4 +1,5 @@
 import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
+import { createBlockUrl, createQueryUrl } from "../utils/craftUrls";
 import React from "react";
 import { DocBlock } from "../hooks/useDocumentSearch";
 import CreateDocumentItem from "./CreateDocumentItem";
@@ -70,9 +71,11 @@ export default function ListDocBlocks({
             }
             actions={
               <ActionPanel>
-                <Action.OpenInBrowser
-                  title="Open in Craft"
-                  url={`craftdocs://open?blockId=${doc.block.id}&spaceId=${doc.block.spaceID}`}
+                <Action.OpenInBrowser title="Open in Craft" url={createBlockUrl(doc.block.id, doc.block.spaceID)} />
+                <Action.CopyToClipboard
+                  title="Copy Deeplink to Clipboard"
+                  content={createBlockUrl(doc.block.id, doc.block.spaceID)}
+                  shortcut={{ modifiers: ["cmd"], key: "l" }}
                 />
               </ActionPanel>
             }
@@ -102,9 +105,7 @@ export default function ListDocBlocks({
                       <ActionPanel>
                         <Action.OpenInBrowser
                           title={`Create the Daily Note`}
-                          url={`craftdocs://openByQuery?query=${isoDateString}&spaceId=${
-                            config?.primarySpace()?.spaceID || ""
-                          }`}
+                          url={createQueryUrl(isoDateString, config?.primarySpace()?.spaceID || "")}
                         />
                       </ActionPanel>
                     }

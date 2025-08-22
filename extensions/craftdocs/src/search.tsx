@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import useSearch, { Block } from "./hooks/useSearch";
 import ListBlocks from "./components/ListBlocks";
 import useAppExists, { UseAppExists } from "./hooks/useAppExists";
@@ -6,8 +6,8 @@ import useConfig, { UseConfig } from "./hooks/useConfig";
 import useDB, { UseDB } from "./hooks/useDB";
 import { CACHE_KEYS, APP_CONSTANTS } from "./constants";
 import { Action, ActionPanel, List, showToast, Toast, openExtensionPreferences, Cache } from "@raycast/api";
+import { SpaceListDropdown, SpaceOption } from "./components/SpaceListDropdown";
 import { getSearchPreferences, getDateFormatPreferences, getPrimaryLanguage } from "./preferences";
-import { ensureSafeTitle } from "./utils/safety";
 import useDocumentSearch from "./hooks/useDocumentSearch";
 import ListDocBlocks from "./components/ListDocBlocks";
 import { parseMultilingualDate } from "./utils/multilingualDateParser";
@@ -17,34 +17,6 @@ import { useExpandedSearch, useExpandedDocumentSearch } from "./hooks/useExpande
 import Style = Toast.Style;
 
 const cache = new Cache();
-
-interface SpaceOption {
-  id: string;
-  title: string;
-}
-
-interface SpaceDropdownProps {
-  value: string;
-  spaces: SpaceOption[];
-  onSpaceChange: (newValue: string) => void;
-}
-
-function SpaceDropdown({ value, spaces, onSpaceChange }: SpaceDropdownProps) {
-  return (
-    <List.Dropdown value={value} tooltip="Select Space" onChange={onSpaceChange}>
-      <List.Dropdown.Section title="Spaces">
-        <List.Dropdown.Item key="all" title="All spaces" value="all" />
-        {spaces.map((space) => (
-          <List.Dropdown.Item
-            key={space.id}
-            title={ensureSafeTitle(space.title, [`Space ${space.id}`])}
-            value={space.id}
-          />
-        ))}
-      </List.Dropdown.Section>
-    </List.Dropdown>
-  );
-}
 
 const { useDetailedView, enableCustomEntries } = getSearchPreferences();
 const { dateDisplayFormat, showCurrentYear } = getDateFormatPreferences();
@@ -61,27 +33,38 @@ export default function search() {
     cache.get(CACHE_KEYS.SEARCH_SPACE_ID) || APP_CONSTANTS.DEFAULT_SPACE_FILTER
   );
 
-  const parseTextToDate = (text: string): Date | null => {
-    if (!text || text.trim().length === 0) return null;
+  const parseTextToDate = useMemo(() => {
+    return (text: string): Date | null => {
+      if (!text || text.trim().length === 0) return null;
 
-    const today = new Date();
+      const today = new Date();
 
-    // Use multilingual parser with search-optimized options
-    const preferredLanguage = getPrimaryLanguage();
-    const result = parseMultilingualDate(text, {
-      referenceDate: today,
-      // For search, disable forward bias to find exact dates user is looking for
-      // This prevents "monday" from jumping to next week when user meant last Monday
-      forwardDate: false,
-      // For search context, bias toward current year for ambiguous dates
-      // This helps "24.08.26" resolve to 2024 instead of 1924 or other years
-      currentYearBias: true,
-      // Use user's preferred language from extension preferences
-      locale: preferredLanguage,
-    });
+      // Use multilingual parser with search-optimized options
+      const preferredLanguage = getPrimaryLanguage();
+      const result = parseMultilingualDate(text, {
+        referenceDate: today,
+        // For search, disable forward bias to find exact dates user is looking for
+        // This prevents "monday" from jumping to next week when user meant last Monday
+        forwardDate: false,
+        // For search context, bias toward current year for ambiguous dates
+        // This helps "24.08.26" resolve to 2024 instead of 1924 or other years
+        currentYearBias: true,
+        // Use user's preferred language from extension preferences
+        locale: preferredLanguage,
+      });
 
-    return result;
-  };
+      return result;
+    };
+  }, []);
+
+  // Memoize spaces calculation to prevent unnecessary re-computations
+  const spaces = useMemo(() => {
+    return config.config?.getAllSpacesForDropdown() || [];
+  }, [config.config]);
+
+  const showSpaceDropdown = useMemo(() => {
+    return spaces.length > 1;
+  }, [spaces.length]);
 
   const handleQueryChange = (text: string) => {
     setQuery(text);
@@ -94,7 +77,7 @@ export default function search() {
     cache.set(CACHE_KEYS.SEARCH_SPACE_ID, newValue);
   };
 
-  const params = {
+  const params: ViewParams = {
     appExists,
     db,
     query,
@@ -105,6 +88,8 @@ export default function search() {
     parsedDate,
     dateDisplayFormat,
     showCurrentYear,
+    spaces,
+    showSpaceDropdown,
   };
 
   useEffect(() => {
@@ -139,6 +124,8 @@ type ViewParams = {
   parsedDate: Date | undefined;
   dateDisplayFormat: string;
   showCurrentYear: boolean;
+  spaces: SpaceOption[];
+  showSpaceDropdown: boolean;
 };
 
 const handleListView = ({
@@ -152,6 +139,8 @@ const handleListView = ({
   parsedDate,
   dateDisplayFormat,
   showCurrentYear,
+  spaces,
+  showSpaceDropdown,
 }: ViewParams) => {
   const { resultsLoading, results } = useSearch(db, query, parsedDate);
 
@@ -183,9 +172,6 @@ const handleListView = ({
         )
       : prioritizedCombinedResults?.filter((block) => block.spaceID === selectedSpace);
 
-  const spaces = config.config?.getAllSpacesForDropdown() || [];
-  const showSpaceDropdown = spaces.length > 1;
-
   const listBlocks = (
     <ListBlocks
       isLoading={
@@ -201,7 +187,7 @@ const handleListView = ({
       enableCustomEntries={enableCustomEntries}
       searchBarAccessory={
         showSpaceDropdown ? (
-          <SpaceDropdown spaces={spaces} onSpaceChange={handleSpaceChange} value={selectedSpace} />
+          <SpaceListDropdown spaces={spaces} onSpaceChange={handleSpaceChange} value={selectedSpace} showAllOption />
         ) : undefined
       }
     />
@@ -223,6 +209,8 @@ const handleDetailedView = ({
   parsedDate,
   dateDisplayFormat,
   showCurrentYear,
+  spaces,
+  showSpaceDropdown,
 }: ViewParams) => {
   const { resultsLoading, results } = useDocumentSearch(db, query, parsedDate);
 
@@ -262,9 +250,6 @@ const handleDetailedView = ({
         )
       : sortedCombinedResults?.filter((doc) => doc.block.spaceID === selectedSpace);
 
-  const spaces = config.config?.getAllSpacesForDropdown() || [];
-  const showSpaceDropdown = spaces.length > 1;
-
   const listDocuments = (
     <ListDocBlocks
       resultsLoading={
@@ -279,7 +264,7 @@ const handleDetailedView = ({
       showCurrentYear={showCurrentYear}
       searchBarAccessory={
         showSpaceDropdown ? (
-          <SpaceDropdown spaces={spaces} onSpaceChange={handleSpaceChange} value={selectedSpace} />
+          <SpaceListDropdown spaces={spaces} onSpaceChange={handleSpaceChange} value={selectedSpace} showAllOption />
         ) : undefined
       }
     />

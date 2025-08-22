@@ -10,11 +10,11 @@ You need [Craft](https://www.craft.do/) installed on your Mac for this extension
 
 ### 🔍 Blocks Search
 
-Search through all your Craft documents across all locally available spaces with fast full-text search.
+Search through all your Craft Documents across all locally available Spaces with fast full-text search.
 
-- Search document content, titles, and blocks
-- Results from all spaces are included
-- Jump directly to documents in Craft
+- Search Documents content, titles, and blocks
+- Results from all Spaces are included
+- Jump directly to Documents in Craft
 
 ![Blocks Search](./metadata/craft-search.png)
 
@@ -41,10 +41,10 @@ Add content to your daily note without leaving Raycast.
 
 ### 🏷️ Manage Spaces
 
-Organize your Craft spaces for better workflow.
+Organize your Craft Spaces for better workflow.
 
-- Rename your spaces
-- Enable or disable spaces extension-wide
+- Rename your Spaces
+- Enable or disable Spaces extension-wide
 - Consistent space names across all commands
 - Primary space cannot be disabled for safety
 
@@ -70,9 +70,9 @@ Once you know which ID corresponds to which space, you can rename them for bette
 | Command | Description |
 |---------|-------------|
 | **Blocks Search** | Search across all your Craft documents and blocks |
-| **Daily Notes** | Navigate to and manage your daily notes |
-| **Add to Daily Note** | Add content to today's daily note |
-| **Manage Spaces** | Rename spaces and control their visibility |
+| **Daily Notes** | Navigate to and manage your Daily Notes |
+| **Add to Daily Note** | Add content to today's Daily Note |
+| **Manage Spaces** | Rename Spaces and control their visibility |
 
 ## Configuration
 
@@ -101,14 +101,14 @@ Customize how timestamps and content are formatted:
 
 ### Space Management
 
-- **Custom Names**: Give your spaces names instead of using Space IDs
-- **Space Filtering**: Use the dropdown in search commands to filter by specific spaces
-- **Enable/Disable**: Hide unused spaces from all commands while keeping them accessible in Craft
+- **Custom Names**: Give your Spaces names instead of using Space IDs
+- **Space Filtering**: Use the dropdown in search commands to filter by specific Spaces
+- **Enable/Disable**: Hide unused Spaces from all commands while keeping them accessible in Craft
 - **Persistent Settings**: Your space preferences are saved and synchronized across all commands
 
 ## How It Works
 
-The extension uses Craft's local SQLite database to provide fast, offline search across all your documents. It leverages full-text search (FTS5) for efficient querying and supports all spaces that Craft has synced locally.
+The extension uses Craft's local SQLite database to provide fast, offline search across all your documents. It leverages full-text search (FTS5) for efficient querying and supports all Spaces that Craft has synced locally.
 
 Since Craft does not yet provide an API, all functions related to document creation are implemented through [Craft's URL Scheme](https://support.craft.do/hc/en-us/articles/360020168838-Using-URL-Scheme).
 
@@ -128,7 +128,7 @@ The extension performs best when Craft has finished syncing. Large document coll
 
 ### Space Management Issues
 
-If renamed spaces don't appear correctly, try refreshing the extension or restarting Raycast. Space settings are stored locally and persist between sessions.
+If renamed Spaces don't appear correctly, try refreshing the extension or restarting Raycast. Space settings are stored locally and persist between sessions.
 
 ## Previous Developer / Maintainer
 This extension was originally developed by [Vitaliy Kudryk](https://github.com/kudrykv) and is currently maintained by [Samuel François](https://github.com/sfkmk).

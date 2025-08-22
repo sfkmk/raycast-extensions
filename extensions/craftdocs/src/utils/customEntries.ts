@@ -1,6 +1,7 @@
 import { Icon } from "@raycast/api";
 import { formatCraftInternalDate, isISODatePattern } from "../utils/dateTimeFormatter";
 import { Block } from "../hooks/useSearch";
+import Config from "../Config";
 
 // Type for extended blocks that can include custom entries
 export type ExtendedBlock = Block | (PopulatedCustomEntry & { isCustomEntry: true });
@@ -101,23 +102,27 @@ function isPartialMatch(query: string, searchTerms: string[]): boolean {
 }
 
 /**
- * Filters custom entries based on search query and returns populated entries for matching spaces.
+ * Filters custom entries based on search query and returns populated entries for matching Spaces.
  *
  * This function searches through predefined custom navigation entries (like "Starred Documents",
- * "All Tags", etc.) and returns those that match the query either exactly or partially.
+ * "All Tags", etc.) and dynamic space entries, returning only those that exactly match the query.
  * Each matching entry is populated with URLs for all provided space IDs.
  *
  * @param query - The search query string to match against entry titles and alternatives
  * @param spaceIDs - Array of space IDs to generate entries for
+ * @param config - Optional Config instance to enable dynamic space entries
  * @returns Array of populated custom entries that match the query
  *
  * @example
  * ```typescript
  * const entries = filterCustomEntries("starred", ["space1", "space2"]);
- * // Returns entries for "Starred Documents" in both spaces
+ * // Returns entries for "Starred Documents" in both Spaces
+ *
+ * const entriesWithSpaces = filterCustomEntries("My Space", ["space1"], config);
+ * // Returns space entries if "My Space" matches a space name
  * ```
  */
-export function filterCustomEntries(query: string, spaceIDs: string[]): PopulatedCustomEntry[] {
+export function filterCustomEntries(query: string, spaceIDs: string[], config?: Config): PopulatedCustomEntry[] {
   if (!query || query.trim().length === 0) {
     return [];
   }
@@ -125,17 +130,18 @@ export function filterCustomEntries(query: string, spaceIDs: string[]): Populate
   try {
     const results: PopulatedCustomEntry[] = [];
 
-    for (const entry of CUSTOM_ENTRIES) {
-      try {
-        const searchTerms = [entry.title, ...entry.alternatives];
+    // Process entries for each space
+    for (const spaceID of spaceIDs) {
+      // First, handle static custom entries
+      for (const entry of CUSTOM_ENTRIES) {
+        try {
+          const searchTerms = [entry.title, ...entry.alternatives];
 
-        // Check if this entry matches the query
-        const exactMatch = isExactMatch(query, searchTerms);
-        const partialMatch = isPartialMatch(query, searchTerms);
+          // Check if this entry matches the query
+          const exactMatch = isExactMatch(query, searchTerms);
+          const partialMatch = isPartialMatch(query, searchTerms);
 
-        if (exactMatch || partialMatch) {
-          // Create entries for each space
-          for (const spaceID of spaceIDs) {
+          if (exactMatch) {
             try {
               let url = "";
               if (!entry.isSpecial) {
@@ -155,10 +161,45 @@ export function filterCustomEntries(query: string, spaceIDs: string[]): Populate
               continue;
             }
           }
+        } catch (entryError) {
+          // Skip this entry if processing fails
+          continue;
         }
-      } catch (entryError) {
-        // Skip this entry if processing fails
-        continue;
+      }
+
+      // Then, handle dynamic space entry for this specific space
+      if (config) {
+        const space = config.getEnabledSpaces().find((s) => s.spaceID === spaceID);
+        if (space) {
+          const spaceName = config.getSpaceDisplayName(space.spaceID);
+          const spaceEntry = {
+            title: spaceName,
+            alternatives: ["Spaces", "Space"],
+            icon: Icon.House,
+            urlTemplate: "craftdocs://openfolder?folderId=all&spaceId={spaceId}",
+          };
+
+          const searchTerms = [spaceEntry.title, ...spaceEntry.alternatives];
+          const exactMatch = isExactMatch(query, searchTerms);
+          const partialMatch = isPartialMatch(query, searchTerms);
+
+          if (exactMatch) {
+            try {
+              const url = spaceEntry.urlTemplate.replace("{spaceId}", spaceID);
+              results.push({
+                title: spaceEntry.title,
+                icon: spaceEntry.icon,
+                url,
+                spaceID,
+                searchTerms,
+                isExactMatch: exactMatch,
+              });
+            } catch (urlError) {
+              // Skip this space if URL generation fails
+              continue;
+            }
+          }
+        }
       }
     }
 
@@ -170,25 +211,11 @@ export function filterCustomEntries(query: string, spaceIDs: string[]): Populate
 }
 
 /**
- * Gets the priority score for sorting custom entries (lower = higher priority).
- *
- * Exact matches get priority 0, partial matches get priority 1.
- * This is used internally by the bias sorting system.
- *
- * @param entry - The populated custom entry to get priority for
- * @returns Priority score (0 for exact matches, 1 for partial matches)
- * @internal
- */
-function getCustomEntryPriority(entry: PopulatedCustomEntry): number {
-  return entry.isExactMatch ? 0 : 1;
-}
-
-/**
  * Determines if a search result item should be biased (prioritized) based on the query.
  *
  * This function implements the centralized bias system that prioritizes certain types
  * of entries in search results:
- * - Custom entries with exact matches are always biased
+ * - Custom entries are always biased (they are all exact matches)
  * - Task-related entries when query contains task terms
  *
  * @param item - The search result item (either a Block or CustomEntry)
@@ -205,8 +232,8 @@ export function shouldBiasEntry(item: ExtendedBlock, query: string): boolean {
   try {
     const isCustom = "isCustomEntry" in item;
 
-    // Always bias exact-match custom entries
-    if (isCustom && item.isExactMatch) {
+    // Always bias custom entries (they are all exact matches now)
+    if (isCustom) {
       return true;
     }
 
@@ -231,8 +258,8 @@ export function shouldBiasEntry(item: ExtendedBlock, query: string): boolean {
  * Applies centralized bias sorting to search results, prioritizing certain items.
  *
  * This function separates search results into biased (high priority) and normal entries,
- * then returns them with biased entries first. Within biased entries, custom entries
- * are further sorted by their priority scores.
+ * then returns them with biased entries first. Custom entries are placed first among
+ * biased entries.
  *
  * @template T - Type extending ExtendedBlock (Block or CustomEntry)
  * @param allResults - All search results to be sorted
@@ -272,15 +299,12 @@ export function applyCentralizedBias<T extends ExtendedBlock>(
       }
     });
 
-    // Sort biased entries maintaining their internal order but prioritizing by type
+    // Sort biased entries - custom entries first, then other biased entries
     biasedEntries.sort((a: T, b: T) => {
       try {
         const aIsCustom = "isCustomEntry" in a;
         const bIsCustom = "isCustomEntry" in b;
 
-        if (aIsCustom && bIsCustom) {
-          return getCustomEntryPriority(a) - getCustomEntryPriority(b);
-        }
         if (aIsCustom && !bIsCustom) return -1;
         if (!aIsCustom && bIsCustom) return 1;
         return 0;

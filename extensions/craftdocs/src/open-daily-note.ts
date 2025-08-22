@@ -1,5 +1,6 @@
 import { open, showToast, Toast } from "@raycast/api";
 import Config from "./Config";
+import { createQueryUrl } from "./utils/craftUrls";
 
 export default async function Command() {
   try {
@@ -7,7 +8,7 @@ export default async function Command() {
 
     if (config.spaces.length === 0) {
       await showToast({
-        title: "No Craft spaces found",
+        title: "No Craft Spaces found",
         message: "Make sure Craft is installed and configured properly",
         style: Toast.Style.Failure,
       });
@@ -33,7 +34,7 @@ export default async function Command() {
       return;
     }
 
-    const url = `craftdocs://openByQuery?query=today&spaceId=${primarySpace.spaceID}`;
+    const url = createQueryUrl("today", primarySpace.spaceID);
     await open(url);
 
     await showToast({

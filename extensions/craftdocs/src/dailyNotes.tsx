@@ -1,46 +1,15 @@
 import useAppExists from "./hooks/useAppExists";
 import useConfig from "./hooks/useConfig";
-import { List, Cache } from "@raycast/api";
+import { List, Cache, Icon } from "@raycast/api";
+import { SpaceListDropdown, SpaceOption } from "./components/SpaceListDropdown";
 import { useState, useEffect } from "react";
 import { parseMultilingualDate } from "./utils/multilingualDateParser";
 import { getPrimaryLanguage } from "./preferences";
 import { DailyNotes } from "./components/DailyNotes";
 import { CACHE_KEYS } from "./constants";
-import { ensureSafeTitle } from "./utils/safety";
 
 const cache = new Cache();
 
-function SpaceDropdown({
-  value,
-  spaces,
-  onSpaceChange,
-}: {
-  value: string;
-  spaces: Array<{ id: string; title: string }>;
-  onSpaceChange: (newValue: string) => void;
-}) {
-  return (
-    <List.Dropdown
-      value={value}
-      tooltip="Select Space"
-      onChange={(newValue) => {
-        onSpaceChange(newValue);
-      }}
-    >
-      <List.Dropdown.Section title="Spaces">
-        {spaces.map((space) => (
-          <List.Dropdown.Item
-            key={space.id}
-            title={ensureSafeTitle(space.title, [`Space ${space.id}`])}
-            value={space.id}
-          />
-        ))}
-      </List.Dropdown.Section>
-    </List.Dropdown>
-  );
-}
-
-// noinspection JSUnusedGlobalSymbols
 export default function dailyNotes() {
   const appExists = useAppExists();
   const { config, configLoading } = useConfig(appExists);
@@ -108,7 +77,7 @@ export default function dailyNotes() {
       onSearchTextChange={parseDate}
       searchBarAccessory={
         showSpaceDropdown ? (
-          <SpaceDropdown spaces={spaces} onSpaceChange={handleSpaceChange} value={selectedSpaceId} />
+          <SpaceListDropdown spaces={spaces} onSpaceChange={handleSpaceChange} value={selectedSpaceId} />
         ) : null
       }
     >

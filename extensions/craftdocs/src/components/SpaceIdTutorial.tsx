@@ -10,12 +10,12 @@ export default function SpaceIdTutorial() {
 
 ---
 
-Space IDs are unique identifiers that Craft uses internally to distinguish between different spaces in your account.
+Space IDs are unique identifiers that Craft uses internally to distinguish between different Spaces in your account.
 
 ## Why Do You Need This?
 
 - **Better Organization**: Instead of seeing cryptic IDs like "1ab23c45-67de-89f0-1g23-hijk456789l0", you can rename them to names like "Personal Space" or "Team Space"
-- **Space Management**: Enable or disable specific spaces across all extension commands
+- **Space Management**: Enable or disable specific Spaces across all extension commands
 - **Consistent Naming**: Use the same space names throughout all Craft extension commands
 
 ## Step-by-Step Guide
@@ -55,7 +55,7 @@ Now you can use the Manage Spaces command to:
 - **Multiple Spaces**: Repeat this process for each space you want to manage
 - **Any Block Works**: You can right-click on any block in a space to get its Space ID
 - **Consistent IDs**: The Space ID remains the same for all blocks within the same space
-- **One-Time Setup**: Once you've renamed your spaces, you won't need to do this again
+- **One-Time Setup**: Once you've renamed your Spaces, you won't need to do this again
 
 ## Troubleshooting
 

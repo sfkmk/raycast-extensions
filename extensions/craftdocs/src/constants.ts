@@ -35,6 +35,27 @@ export const SEARCH_CONSTANTS = {
 // Using 999999 for "end" position follows Craft's native URL scheme approach.
 // This may change in the future if Craft adds an API for external developers.
 export const APPEND_POSITIONS = {
-  BEGINNING: "0",
-  END: "999999",
+  BEGINNING: 0,
+  END: 999999,
+} as const;
+
+// Form preference field definitions
+export const PREFERENCE_FIELDS = {
+  timeFormat: {
+    // Default changed from "HH:mm" to "HH:mm:" to provide better visual separation
+    // between timestamp and content when formatting daily note entries
+    default: "HH:mm:",
+    placeholder: "HH:mm:",
+    info: "Custom time format pattern. Examples: HH:mm: (14:30:), h:mm A (2:30 PM), HH:mm:ss (14:30:45). Patterns: H/HH=24h, h/hh=12h, mm=minutes, ss=seconds, A/a=AM/PM",
+  },
+  contentPrefix: {
+    default: "",
+    placeholder: "Enter prefix text",
+    info: "Text to add after timestamp (if enabled) and before your content",
+  },
+  contentSuffix: {
+    default: "",
+    placeholder: "Enter suffix text",
+    info: "Text to add after your content",
+  },
 } as const;

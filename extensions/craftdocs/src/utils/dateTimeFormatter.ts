@@ -123,7 +123,7 @@ export function formatDate(date: Date, pattern: string, hideCurrentYear = true):
     return tokenFunction ? tokenFunction(date) : match;
   });
 
-  // Clean up any double spaces or leading/trailing separators
+  // Clean up any double Spaces or leading/trailing separators
   result = result
     .replace(/\s+/g, " ")
     .replace(/^[,\s]+|[,\s]+$/g, "")

@@ -62,9 +62,6 @@ export function getSupportedLanguagesFromPreferences(): string[] {
     // Validate and filter supported languages
     const validLanguages = languages.filter((lang) => {
       const isValid = !!getLanguageConfig(lang);
-      if (!isValid) {
-        console.warn(`Unsupported language in preferences: ${lang}`);
-      }
       return isValid;
     });
 
@@ -75,7 +72,6 @@ export function getSupportedLanguagesFromPreferences(): string[] {
 
     return validLanguages;
   } catch (error) {
-    console.error("Error reading language preferences:", error);
     // Emergency fallback when preferences completely fail
     return ["en"];
   }

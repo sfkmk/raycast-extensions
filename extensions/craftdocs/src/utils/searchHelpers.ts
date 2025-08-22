@@ -2,6 +2,9 @@ import { BindParams, Database, SqlValue } from "../../assets/sql-wasm-fts5";
 import { Block } from "../hooks/useSearch";
 import { DocBlock } from "../hooks/useDocumentSearch";
 import { SEARCH_CONSTANTS } from "../constants";
+import Config from "../Config";
+import { ExtendedBlock, isTaskInboxDocument, isTaskInboxBlock, isDailyNoteBlock } from "./customEntries";
+import { createBlockUrl } from "./craftUrls";
 
 export const searchQuery = `
 SELECT id, content, type, entityType, documentId
@@ -47,7 +50,7 @@ export const searchBlocks = (database: Database, spaceID: string, query: string,
       .flat()
       .map(sqlValueArr2Block(spaceID));
   } catch (e) {
-    console.error(`db exec error`);
+    console.error(`Database execution error in searchBlocks for spaceID "${spaceID}":`, e);
 
     return [];
   }
@@ -111,7 +114,7 @@ export const backfillBlocksWithDocumentNames = (database: Database, blocks: Bloc
 
     return blocks;
   } catch (e) {
-    console.error(`db exec error`);
+    console.error(`Database execution error in backfillBlocksWithDocumentNames:`, e);
 
     return [];
   }
@@ -133,7 +136,7 @@ export const documentize = (database: Database, spaceID: string, blocks: Block[]
       .flat()
       .reduce(compactBlocksToDocBlocks(spaceID), [] as DocBlock[]);
   } catch (e) {
-    console.error(`db exec error`);
+    console.error(`Database execution error in searchDocBlocksWithEmptyQuery for spaceID "${spaceID}":`, e);
 
     return [];
   }
@@ -291,4 +294,108 @@ export function combineDocBlockResults(
   }
 
   return combined;
+}
+
+/**
+ * Generates markdown content for search results document
+ * This is specific to search functionality and not intended for reuse
+ *
+ * @param results - Array of search results (blocks and custom entries)
+ * @param query - The search query used
+ * @param config - Configuration object for space names
+ * @returns Markdown string with all results as links
+ */
+export function generateSearchResultsMarkdown(results: ExtendedBlock[], query: string, config: Config | null): string {
+  if (results.length === 0) {
+    return `No results found for "${query}".`;
+  }
+
+  const today = new Date();
+  const dateString = today.toISOString().split("T")[0];
+  let markdown = `Generated on [${dateString}](day://${dateString})\n\n`;
+
+  results.forEach((item) => {
+    let emoji = "";
+    let title = "";
+    let url = "";
+
+    if ("isCustomEntry" in item) {
+      // Custom entry - map icon to appropriate emoji
+      switch (item.title) {
+        case "Starred Documents":
+          emoji = "⭐";
+          break;
+        case "All Tags":
+          emoji = "🏷️";
+          break;
+        case "All Docs":
+          emoji = "📁";
+          break;
+        case "Organize":
+          emoji = "📂";
+          break;
+        case "Unsorted":
+          emoji = "📥";
+          break;
+        case "Recently Deleted":
+          emoji = "🗑️";
+          break;
+        case "Shared with Me":
+          emoji = "👥";
+          break;
+        default:
+          emoji = "🔗";
+      }
+      title = item.title;
+      url = item.url;
+    } else {
+      // Regular block
+      if (item.entityType === "document") {
+        // Check for special document types
+        if (
+          isTaskInboxDocument(item.content, item.entityType) ||
+          isTaskInboxDocument(item.documentName || "", item.entityType)
+        ) {
+          emoji = "✅";
+        } else if (isDailyNoteBlock(item)) {
+          emoji = "📅";
+        } else {
+          emoji = "📄";
+        }
+        title = item.documentName || item.content;
+      } else {
+        // Block within a document
+        if (isTaskInboxBlock(item.documentName)) {
+          emoji = "☑️";
+        } else if (
+          item.documentName &&
+          isDailyNoteBlock({
+            entityType: "document",
+            content: item.documentName,
+            documentName: item.documentName,
+          })
+        ) {
+          emoji = "📝";
+        } else {
+          emoji = "📝";
+        }
+        title = item.content;
+      }
+      url = createBlockUrl(item.id, item.spaceID);
+    }
+
+    // Truncate title if too long and escape markdown characters
+    const truncatedTitle = title.length > 100 ? title.substring(0, 97) + "..." : title;
+    const escapedTitle = truncatedTitle.replace(/[[\]]/g, "\\$&");
+
+    // Add space info if multiple Spaces exist
+    const spaceInfo =
+      config && config.getEnabledSpaces().length > 1 && "spaceID" in item
+        ? ` (${config.getSpaceDisplayName(item.spaceID)})`
+        : "";
+
+    markdown += `${emoji} [${escapedTitle}${spaceInfo}](${url})\n`;
+  });
+
+  return markdown;
 }

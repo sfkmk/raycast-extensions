@@ -126,16 +126,16 @@
           "name": "timeFormat",
           "type": "textfield",
           "required": false,
-          "default": "HH:mm",
-          "placeholder": "HH:mm",
-          "description": "Custom time format pattern. Examples: HH:mm (14:30), h:mm A (2:30 PM), HH:mm:ss (14:30:45). Patterns: H/HH=24h, h/hh=12h, mm=minutes, ss=seconds, A/a=AM/PM"
+          "default": "HH:mm:",
+          "placeholder": "HH:mm:",
+          "description": "Custom time format pattern. Examples: HH:mm: (14:30:), h:mm A (2:30 PM), HH:mm:ss (14:30:45). Patterns: H/HH=24h, h/hh=12h, mm=minutes, ss=seconds, A/a=AM/PM"
         },
         {
           "title": "Prefix",
           "name": "contentPrefix",
           "type": "textfield",
           "required": false,
-          "default": ": ",
+          "default": "",
           "placeholder": "Enter prefix text",
           "description": "Text to add after timestamp (if enabled) and before your content"
         },
@@ -154,7 +154,7 @@
       "name": "manageSpaces",
       "title": "Manage Spaces",
       "subtitle": "Craft",
-      "description": "Manage your Craft spaces: rename, enable/disable, and set which space is primary for opening daily notes",
+      "description": "Manage your Craft Spaces: rename, enable/disable, and set which space is primary for opening daily notes",
       "mode": "view"
     },
     {

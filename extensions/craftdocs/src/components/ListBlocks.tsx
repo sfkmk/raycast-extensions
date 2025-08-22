@@ -15,6 +15,8 @@ import {
   applyCentralizedBias,
   ExtendedBlock,
 } from "../utils/customEntries";
+import { generateSearchResultsMarkdown } from "../utils/searchHelpers";
+import { createDocumentUrl, createQueryUrl, createBlockUrl } from "../utils/craftUrls";
 
 type ListBlocksParams = {
   isLoading: boolean;
@@ -42,7 +44,7 @@ export default function ListBlocks(params: ListBlocksParams) {
     enableCustomEntries,
     searchBarAccessory,
   } = params;
-  const spaceID = config?.primarySpace()?.spaceID || "";
+  const spaceID = config?.primarySpace()?.spaceID || config?.getEnabledSpaces()[0]?.spaceID || "";
   const showSpaceInfo = config ? config.getEnabledSpaces().length > 1 : false;
 
   // Conditionally get custom entries and apply features based on preference (memoized)
@@ -51,8 +53,8 @@ export default function ListBlocks(params: ListBlocksParams) {
   }, [config]);
 
   const customEntries = useMemo(() => {
-    return enableCustomEntries ? filterCustomEntries(query, spaceIDs) : [];
-  }, [enableCustomEntries, query, spaceIDs]);
+    return enableCustomEntries ? filterCustomEntries(query, spaceIDs, config || undefined) : [];
+  }, [enableCustomEntries, query, spaceIDs, config]);
 
   // Conditionally consolidate Task Inbox/Logbook entries per space (memoized)
   const processedBlocks = useMemo(() => {
@@ -78,7 +80,27 @@ export default function ListBlocks(params: ListBlocksParams) {
   }, [allResults, query, enableCustomEntries]);
 
   return (
-    <List isLoading={isLoading} onSearchTextChange={onSearchTextChange} searchBarAccessory={searchBarAccessory}>
+    <List
+      isLoading={isLoading}
+      onSearchTextChange={onSearchTextChange}
+      searchBarAccessory={searchBarAccessory}
+      actions={
+        query.length > 0 && sortedResults.length > 0 && spaceID ? (
+          <ActionPanel>
+            <Action.OpenInBrowser
+              title="Create Document with Search Results"
+              icon={Icon.NewDocument}
+              url={createDocumentUrl(
+                spaceID,
+                `Search results for "${query}"`,
+                generateSearchResultsMarkdown(sortedResults, query, config)
+              )}
+              shortcut={{ modifiers: ["shift", "cmd"], key: "enter" }}
+            />
+          </ActionPanel>
+        ) : undefined
+      }
+    >
       {sortedResults.map((item) => {
         if ("isCustomEntry" in item) {
           return (
@@ -87,6 +109,9 @@ export default function ListBlocks(params: ListBlocksParams) {
               entry={item}
               config={config}
               showSpaceInfo={showSpaceInfo}
+              allResults={sortedResults}
+              query={query}
+              spaceID={spaceID}
             />
           );
         } else {
@@ -100,6 +125,9 @@ export default function ListBlocks(params: ListBlocksParams) {
               showCurrentYear={showCurrentYear}
               parsedDate={parsedDate}
               enableCustomEntries={enableCustomEntries}
+              allResults={sortedResults}
+              query={query}
+              spaceID={spaceID}
             />
           );
         }
@@ -127,7 +155,7 @@ export default function ListBlocks(params: ListBlocksParams) {
                       <ActionPanel>
                         <Action.OpenInBrowser
                           title={`Create the Daily Note`}
-                          url={`craftdocs://openByQuery?query=${isoDateString}&spaceId=${spaceID}`}
+                          url={createQueryUrl(isoDateString, spaceID)}
                         />
                       </ActionPanel>
                     }
@@ -146,10 +174,16 @@ const CustomEntryItem = ({
   entry,
   config,
   showSpaceInfo,
+  allResults,
+  query,
+  spaceID,
 }: {
   entry: PopulatedCustomEntry & { isCustomEntry: true };
   config: Config | null;
   showSpaceInfo?: boolean;
+  allResults: ExtendedBlock[];
+  query: string;
+  spaceID: string;
 }) => {
   const spaceDisplayName = config?.getSpaceDisplayName(entry.spaceID) || entry.spaceID;
 
@@ -172,6 +206,25 @@ const CustomEntryItem = ({
       actions={
         <ActionPanel>
           <Action.OpenInBrowser title={`Open ${entry.title}`} url={entry.url} />
+          <Action.CopyToClipboard
+            title="Copy Deeplink to Clipboard"
+            content={entry.url}
+            shortcut={{ modifiers: ["cmd"], key: "l" }}
+          />
+          {spaceID && (
+            <ActionPanel.Section>
+              <Action.OpenInBrowser
+                title="Create Document with Search Results"
+                icon={Icon.NewDocument}
+                url={createDocumentUrl(
+                  spaceID,
+                  `Search results for "${query}"`,
+                  generateSearchResultsMarkdown(allResults, query, config)
+                )}
+                shortcut={{ modifiers: ["shift", "cmd"], key: "enter" }}
+              />
+            </ActionPanel.Section>
+          )}
         </ActionPanel>
       }
     />
@@ -186,14 +239,20 @@ const BlockItem = ({
   showCurrentYear,
   parsedDate,
   enableCustomEntries,
+  allResults,
+  query,
+  spaceID,
 }: {
   block: Block;
   config: Config | null;
-  showSpaceInfo?: boolean;
+  showSpaceInfo: boolean;
   dateDisplayFormat: string;
   showCurrentYear: boolean;
   parsedDate?: Date;
   enableCustomEntries: boolean;
+  allResults: ExtendedBlock[];
+  query: string;
+  spaceID: string;
 }) => {
   const spaceDisplayName = config?.getSpaceDisplayName(block.spaceID) || block.spaceID;
 
@@ -235,6 +294,7 @@ const BlockItem = ({
       if (enableCustomEntries && isTaskInboxBlock(block.documentName)) {
         return Icon.CheckCircle;
       }
+      // Ignore the TypeScript error for this icon. It's a false positive.
       return Icon.Text;
     }
   };
@@ -258,10 +318,26 @@ const BlockItem = ({
       }
       actions={
         <ActionPanel>
-          <Action.OpenInBrowser
-            title="Open in Craft"
-            url={`craftdocs://open?blockId=${block.id}&spaceId=${block.spaceID}`}
+          <Action.OpenInBrowser title="Open in Craft" url={createBlockUrl(block.id, block.spaceID)} />
+          <Action.CopyToClipboard
+            title="Copy Deeplink to Clipboard"
+            content={createBlockUrl(block.id, block.spaceID)}
+            shortcut={{ modifiers: ["cmd"], key: "l" }}
           />
+          {spaceID && (
+            <ActionPanel.Section>
+              <Action.OpenInBrowser
+                title="Create Document with Search Results"
+                icon={Icon.NewDocument}
+                url={createDocumentUrl(
+                  spaceID,
+                  `Search results for "${query}"`,
+                  generateSearchResultsMarkdown(allResults, query, config)
+                )}
+                shortcut={{ modifiers: ["shift", "cmd"], key: "enter" }}
+              />
+            </ActionPanel.Section>
+          )}
         </ActionPanel>
       }
     />

@@ -1,4 +1,5 @@
 import { Action, ActionPanel, List } from "@raycast/api";
+import { createQueryUrl } from "../utils/craftUrls";
 import { parseMultilingualDate } from "../utils/multilingualDateParser";
 import { getDateFormatPreferences } from "../preferences";
 import { formatDate } from "../utils/dateTimeFormatter";
@@ -17,7 +18,7 @@ export const Shortcut = ({ dayRef, spaceID }: { dayRef: DayReference; spaceID: s
         <ActionPanel>
           <Action.Open
             title={`Open ${dayRef.charAt(0).toUpperCase() + dayRef.slice(1)} Notes`}
-            target={`craftdocs://openByQuery?query=${dayRef}&spaceId=${spaceID}`}
+            target={createQueryUrl(dayRef, spaceID)}
           />
         </ActionPanel>
       }

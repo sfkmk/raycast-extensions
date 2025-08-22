@@ -1,6 +1,7 @@
 import { homedir } from "os";
 import { readdirSync, existsSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
+import { Icon } from "@raycast/api";
 import { BUNDLE_IDS } from "./constants";
 import { ensureCraftPath, ensureSafeRegex } from "./utils/safety";
 
@@ -43,7 +44,7 @@ export default class Config {
       const pathToIndexDatabases = searchPath.replace("~", homedir());
       const databasesForExistingRealms = this.buildFilterRegexForExistingRealms();
 
-      // Load settings first before creating spaces
+      // Load settings first before creating Spaces
       this.loadSpaceSettings();
 
       this.spaces = readdirSync(pathToIndexDatabases)
@@ -92,7 +93,7 @@ export default class Config {
   //          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   //          ID of the main space
   //
-  // Additional spaces are named like this:
+  // Additional Spaces are named like this:
   // LukiMain_e95db95e-286c-e7c9-276e-c61b378d1e1c||b3fccbd6-1e8e-a73f-16d5-9d14a9f17793_2E3178A2-26CD-4991-BBCB-67F097040B59.realm
   //                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   //                                                ID of secondary spaces
@@ -169,7 +170,7 @@ export default class Config {
     return this.spaces.filter((space) => space.isEnabled);
   };
 
-  getAllSpacesForDropdown = (): Array<{ id: string; title: string }> => {
+  getAllSpacesForDropdown = (): Array<{ id: string; title: string; icon: Icon }> => {
     const currentPrimary = this.primarySpace();
     return this.getEnabledSpaces().map((space) => ({
       id: space.spaceID,
@@ -177,6 +178,7 @@ export default class Config {
         currentPrimary?.spaceID === space.spaceID
           ? `${this.getSpaceDisplayName(space.spaceID)} (Primary)`
           : this.getSpaceDisplayName(space.spaceID),
+      icon: Icon.House,
     }));
   };
 

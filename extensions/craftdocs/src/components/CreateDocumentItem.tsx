@@ -1,4 +1,5 @@
 import { Action, ActionPanel, Icon, List } from "@raycast/api";
+import { createDocumentUrl } from "../utils/craftUrls";
 
 export default function CreateDocumentItem({ query, spaceID }: { query: string; spaceID: string }) {
   return (
@@ -8,10 +9,7 @@ export default function CreateDocumentItem({ query, spaceID }: { query: string; 
       icon={Icon.NewDocument}
       actions={
         <ActionPanel>
-          <Action.OpenInBrowser
-            title="Create the Document"
-            url={`craftdocs://createdocument?spaceId=${spaceID}&title=${encodeURIComponent(query)}&content=&folderId=`}
-          />
+          <Action.OpenInBrowser title="Create the Document" url={createDocumentUrl(spaceID, query, "")} />
         </ActionPanel>
       }
     />

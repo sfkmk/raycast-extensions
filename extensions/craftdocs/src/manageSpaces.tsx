@@ -11,7 +11,7 @@ import {
   Toast,
   useNavigation,
 } from "@raycast/api";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import useConfig from "./hooks/useConfig";
 import useAppExists from "./hooks/useAppExists";
 import SpaceIdTutorial from "./components/SpaceIdTutorial";
@@ -187,9 +187,19 @@ export default function ManageSpaces() {
     }
   };
 
+  // Memoize expensive calculations to avoid recalculating for each space
+  const currentPrimary = useMemo(() => config?.primarySpace(), [config]);
+  const originalPrimarySpace = useMemo(() => config?.spaces.find((s) => s.primary), [config]);
+  const isCurrentPrimaryCustom = useMemo(
+    () => currentPrimary?.spaceID !== originalPrimarySpace?.spaceID,
+    [currentPrimary?.spaceID, originalPrimarySpace?.spaceID]
+  );
+
   if (!appExists.appExists || !config) {
     return (
       <List
+        isLoading={appExists.appExistsLoading || !config}
+        searchBarPlaceholder="Search spaces..."
         actions={
           <ActionPanel>
             <Action
@@ -225,8 +235,8 @@ export default function ManageSpaces() {
         }
       >
         <List.EmptyView
-          title="No spaces found"
-          description="Try using Craft app first to initialize your spaces"
+          title="No Spaces found"
+          description="Try using the Craft App first to initialize your Spaces"
           icon="command-icon-small.png"
         />
       </List>
@@ -239,7 +249,7 @@ export default function ManageSpaces() {
         <List.Section title="👋 Welcome to Manage Spaces">
           <List.Item
             title="Learn How to Find Space IDs"
-            subtitle="First time here? Learn how to identify and manage your spaces"
+            subtitle="First time here? Learn how to identify and manage your Spaces"
             icon="💡"
             actions={
               <ActionPanel>
@@ -260,16 +270,14 @@ export default function ManageSpaces() {
         {config.spaces.map((space) => {
           const displayName = config.getSpaceDisplayName(space.spaceID);
           const isCustomNamed = space.customName !== null;
-          const currentPrimary = config.primarySpace();
           const isCurrentPrimary = currentPrimary?.spaceID === space.spaceID;
-          const originalPrimarySpace = config.spaces.find((s) => s.primary);
-          const isCurrentPrimaryCustom = currentPrimary?.spaceID !== originalPrimarySpace?.spaceID;
 
           return (
             <List.Item
               key={space.spaceID}
               title={displayName}
               subtitle={isCustomNamed ? `ID: ${space.spaceID}` : undefined}
+              icon={Icon.House}
               accessories={[
                 ...(isCurrentPrimary
                   ? [
