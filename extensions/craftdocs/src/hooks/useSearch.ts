@@ -8,6 +8,8 @@ import {
   searchQuery,
   searchQueryOnEmptyParams,
 } from "./common";
+import { prioritizeDailyNotes } from "../utils/searchHelpers";
+import { parseISODate, isISODatePattern } from "../utils/dateTimeFormatter";
 
 export type Block = {
   id: string;
@@ -35,9 +37,21 @@ export default function useSearch({ databasesLoading, databases }: UseDB, text: 
       .map(({ database, spaceID }) => ({ database, blocks: searchBlocks(database, spaceID, query, params) }))
       .map(({ database, blocks }) => backfillBlocksWithDocumentNames(database, blocks));
 
-    const results = blocksOfSpaces.flat();
+    let results = blocksOfSpaces.flat();
+
+    // Check if query looks like a date and prioritize daily notes
+    const isDateQuery = isISODatePattern(text.trim()) || /^\d{1,2}\.?\s*[a-zA-ZäöüÄÖÜß]+\s*\d{0,4}$/.test(text.trim());
+    if (isDateQuery) {
+      const parsedDate = parseISODate(text.trim());
+      if (parsedDate) {
+        results = prioritizeDailyNotes(results, parsedDate);
+      }
+    }
+
     setState({ results, resultsLoading: false });
-    console.debug(`got ${results.length} results for query search '${text}'`);
+    console.debug(
+      `got ${results.length} results for query search '${text}'${isDateQuery ? " (date prioritized)" : ""}`,
+    );
   }, [databasesLoading, text]);
 
   return state;

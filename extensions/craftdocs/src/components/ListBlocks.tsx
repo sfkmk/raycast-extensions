@@ -80,9 +80,32 @@ const BlockItem = ({
 }) => {
   const spaceDisplayName = config?.getSpaceDisplayName(block.spaceID) || block.spaceID;
 
+  // Determine the appropriate icon
+  const getIcon = () => {
+    if (block.entityType === "document") {
+      // Check if this is a task entry
+      if (analyzeTaskEntry(block).isTaskEntry) {
+        return Icon.List;
+      }
+      // Check if this is a daily note
+      const isContentISODate = /^\d{4}\.\d{2}\.\d{2}$/.test(block.content);
+      const isDocumentNameISODate = block.documentName ? /^\d{4}\.\d{2}\.\d{2}$/.test(block.documentName) : false;
+      if (isContentISODate || isDocumentNameISODate) {
+        return Icon.Calendar;
+      }
+      return Icon.Document;
+    } else {
+      // Block within a document
+      if (analyzeTaskEntry(block).isTaskEntry) {
+        return Icon.CheckCircle;
+      }
+      return Icon.Text;
+    }
+  };
+
   return (
     <List.Item
-      icon={block.entityType === "document" ? Icon.Document : Icon.Text}
+      icon={getIcon()}
       subtitle={block.entityType === "document" ? undefined : block.documentName}
       title={ensureSafeTitle(block.entityType === "document" ? block.documentName || block.content : block.content, [
         block.content,
@@ -127,3 +150,25 @@ const BlockItem = ({
     />
   );
 };
+
+/**
+ * Checks if a block is a task-related entry (Task Inbox or Task Logbook).
+ *
+ * @param block - The block to check
+ * @returns Object with task type information
+ */
+function analyzeTaskEntry(block: Block): { isTaskInbox: boolean; isTaskLogbook: boolean; isTaskEntry: boolean } {
+  if (block.entityType !== "document") {
+    return { isTaskInbox: false, isTaskLogbook: false, isTaskEntry: false };
+  }
+
+  const normalizedContent = block.content.toLowerCase().trim();
+  const normalizedDocName = (block.documentName || "").toLowerCase().trim();
+
+  const isTaskInbox = normalizedContent === "task inbox" || normalizedDocName === "task inbox";
+  const isTaskLogbook = normalizedContent === "task logbook" || normalizedDocName === "task logbook";
+  const isTasksDoc = normalizedContent === "tasks" || normalizedDocName === "tasks";
+  const isTaskEntry = isTaskInbox || isTaskLogbook || isTasksDoc;
+
+  return { isTaskInbox, isTaskLogbook, isTaskEntry };
+}
