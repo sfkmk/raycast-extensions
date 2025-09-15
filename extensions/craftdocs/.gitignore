@@ -17,11 +17,22 @@
 .idea/
 *.swp
 *.swo
+.rules
+.zed/
+AGENTS.md
 
 # Personal development files
 /personal-features/
 .env.local
 /experiments/
+/devdata/
+
 
 # Raycast
 .raycast/
+
+raycast-env.d.ts
+
+.raycast-swift-build
+.swiftpm
+compiled_raycast_swift

@@ -14,7 +14,7 @@ export default function useAppExists() {
     const check = async () => {
       const apps = await getApplications();
       const preferredApp = getPreferences().application;
-      const found = apps.find((app) => app.bundleId && bundleIds.includes(app.bundleId as typeof bundleIds[number]));
+      const found = apps.find((app) => app.bundleId && bundleIds.includes(app.bundleId as (typeof bundleIds)[number]));
       const app = preferredApp || found;
 
       if (!app) {

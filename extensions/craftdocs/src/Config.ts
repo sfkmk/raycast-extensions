@@ -1,13 +1,15 @@
 import { homedir } from "os";
 import { readdirSync, existsSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
+import { Icon } from "@raycast/api";
+import { BUNDLE_IDS } from "./constants";
+import { ensureCraftPath, ensureSafeRegex } from "./utils/safety";
 
-const bundleIds = ["com.lukilabs.lukiapp", "com.lukilabs.lukiapp-setapp"];
-const [craftDataRoot] = bundleIds
-  .map((id) => path.join(homedir(), `/Library/Containers/${id}/Data/Library/Application Support/${id}`))
-  .filter(existsSync);
-const searchPath = path.join(craftDataRoot, "Search");
-const SPACES_CONFIG_FILE = path.join(craftDataRoot, "raycast-spaces-config.json");
+const [craftDataRoot] = BUNDLE_IDS.map((id) =>
+  path.join(homedir(), `/Library/Containers/${id}/Data/Library/Application Support/${id}`),
+).filter(existsSync);
+const searchPath = ensureCraftPath(craftDataRoot, "Search");
+const SPACES_CONFIG_FILE = ensureCraftPath(craftDataRoot, "raycast-spaces-config.json");
 
 type SpaceSQLite = {
   path: string;
@@ -22,6 +24,8 @@ type SpaceSettings = {
     customName: string | null;
     isEnabled: boolean;
   };
+} & {
+  _primarySpaceId?: string;
 };
 
 export default class Config {
@@ -30,24 +34,48 @@ export default class Config {
 
   constructor() {
     try {
+      // Early return if Craft is not installed or directories don't exist
+      if (!searchPath) {
+        console.warn("[Config] Craft search path not found - Craft may not be installed");
+        this.spaces = [];
+        this.spaceSettings = {};
+        return;
+      }
+
       const pathToIndexDatabases = searchPath.replace("~", homedir());
       const databasesForExistingRealms = this.buildFilterRegexForExistingRealms();
 
-      // Load settings first before creating spaces
+      // Load settings first before creating Spaces
       this.loadSpaceSettings();
 
       this.spaces = readdirSync(pathToIndexDatabases)
         .filter((str) => str.match(databasesForExistingRealms))
         .map((str) => this.makeSpaceFromStr(pathToIndexDatabases, str));
-    } catch (e) {
-      console.debug(`failed getting files: ${e}`);
+    } catch (_e) {
       this.spaces = [];
     }
   }
 
-  primarySpace = () => this.spaces.find((space) => space.primary);
+  primarySpace = () => {
+    // First check if user has set a custom primary space
+    const userPrimarySpaceId = this.spaceSettings._primarySpaceId;
+    if (userPrimarySpaceId) {
+      const userPrimarySpace = this.spaces.find((space) => space.spaceID === userPrimarySpaceId && space.isEnabled);
+      if (userPrimarySpace) {
+        return userPrimarySpace;
+      }
+    }
+
+    // Fall back to the original primary space (determined by file structure)
+    return this.spaces.find((space) => space.primary);
+  };
 
   private buildFilterRegexForExistingRealms = (): RegExp => {
+    // Handle case where Craft is not installed
+    if (!craftDataRoot) {
+      return ensureSafeRegex("");
+    }
+
     const root = craftDataRoot.replace("~", homedir());
 
     const regexIDsPart = readdirSync(root)
@@ -56,7 +84,7 @@ export default class Config {
       .filter((str) => str)
       .join("|");
 
-    return new RegExp(`(?:${regexIDsPart})[^.]*.sqlite$`);
+    return ensureSafeRegex(`(?:${regexIDsPart})[^.]*.sqlite$`);
   };
 
   private selectRealmFiles = (str: string): boolean => str.match(/\.realm$/) !== null;
@@ -66,7 +94,7 @@ export default class Config {
   //          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   //          ID of the main space
   //
-  // Additional spaces are named like this:
+  // Additional Spaces are named like this:
   // LukiMain_e95db95e-286c-e7c9-276e-c61b378d1e1c||b3fccbd6-1e8e-a73f-16d5-9d14a9f17793_2E3178A2-26CD-4991-BBCB-67F097040B59.realm
   //                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   //                                                ID of secondary spaces
@@ -101,10 +129,10 @@ export default class Config {
     if (!space) return spaceID;
 
     if (space.customName) {
-      return space.primary ? `${space.customName} (Primary)` : space.customName;
+      return space.customName;
     }
 
-    return space.primary ? `${spaceID} (Primary)` : spaceID;
+    return spaceID;
   };
 
   setSpaceCustomName = (spaceID: string, customName: string | null): void => {
@@ -143,32 +171,69 @@ export default class Config {
     return this.spaces.filter((space) => space.isEnabled);
   };
 
-  getAllSpacesForDropdown = (): Array<{ id: string; title: string }> => {
+  getAllSpacesForDropdown = (): Array<{ id: string; title: string; icon: Icon }> => {
+    const currentPrimary = this.primarySpace();
     return this.getEnabledSpaces().map((space) => ({
       id: space.spaceID,
-      title: this.getSpaceDisplayName(space.spaceID),
+      title:
+        currentPrimary?.spaceID === space.spaceID
+          ? `${this.getSpaceDisplayName(space.spaceID)} (Primary)`
+          : this.getSpaceDisplayName(space.spaceID),
+      icon: Icon.House,
     }));
   };
 
   private loadSpaceSettings = (): void => {
     try {
+      // Handle case where Craft is not installed
+      if (!SPACES_CONFIG_FILE) {
+        this.spaceSettings = {};
+        return;
+      }
+
       if (existsSync(SPACES_CONFIG_FILE)) {
         const data = readFileSync(SPACES_CONFIG_FILE, "utf-8");
         this.spaceSettings = JSON.parse(data);
       } else {
         this.spaceSettings = {};
       }
-    } catch (e) {
-      console.debug(`Failed to load space settings: ${e}`);
+    } catch (error) {
+      console.warn("[Config] Failed to load space settings, using defaults:", error);
       this.spaceSettings = {};
     }
   };
 
+  setPrimarySpace = (spaceID: string): void => {
+    // Validate that the space exists and is enabled
+    const space = this.spaces.find((s) => s.spaceID === spaceID && s.isEnabled);
+    if (!space) {
+      throw new Error("Space not found or is disabled");
+    }
+
+    // Set the new primary space
+    this.spaceSettings._primarySpaceId = spaceID;
+    this.saveSpaceSettings();
+  };
+
+  clearCustomPrimarySpace = (): void => {
+    delete this.spaceSettings._primarySpaceId;
+    this.saveSpaceSettings();
+  };
+
+  getUserDefinedPrimarySpaceId = (): string | null => {
+    return this.spaceSettings._primarySpaceId || null;
+  };
+
   private saveSpaceSettings = (): void => {
     try {
+      // Handle case where Craft is not installed
+      if (!SPACES_CONFIG_FILE) {
+        return;
+      }
+
       writeFileSync(SPACES_CONFIG_FILE, JSON.stringify(this.spaceSettings, null, 2));
-    } catch (e) {
-      console.debug(`Failed to save space settings: ${e}`);
+    } catch (error) {
+      console.error("[Config] Failed to save space settings:", error);
     }
   };
 }
