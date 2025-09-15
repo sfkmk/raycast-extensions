@@ -29,7 +29,7 @@ function SpaceDropdown({ value, spaces, onSpaceChange }: SpaceDropdownProps) {
   return (
     <List.Dropdown value={value} tooltip="Select Space" onChange={onSpaceChange}>
       <List.Dropdown.Section title="Spaces">
-        <List.Dropdown.Item key="all" title="All spaces" value="all" />
+        <List.Dropdown.Item key="all" title="All Spaces" value="all" />
         {spaces.map((space) => (
           <List.Dropdown.Item key={space.id} title={space.title} value={space.id} />
         ))}
@@ -49,7 +49,7 @@ export default function search() {
 
   const [query, setQuery] = useState("");
   const [selectedSpace, setSelectedSpace] = useState<string>(
-    cache.get(CACHE_KEYS.SEARCH_SPACE_ID) || APP_CONSTANTS.DEFAULT_SPACE_FILTER,
+    cache.get(CACHE_KEYS.SEARCH_SPACE_ID) || APP_CONSTANTS.DEFAULT_SPACE_FILTER
   );
 
   const handleSpaceChange = (newValue: string) => {
@@ -66,7 +66,7 @@ export default function search() {
     showToast(Style.Failure, "Error", "Craft app is not installed");
   }, [appExists.appExistsLoading]);
 
-  // Reset to "all" if selected space no longer exists
+  // Reset to "all" if selected Space no longer exists
   useEffect(() => {
     if (
       selectedSpace !== "all" &&
@@ -93,7 +93,7 @@ type ViewParams = {
 const handleListView = ({ appExists, db, query, setQuery, config, selectedSpace, handleSpaceChange }: ViewParams) => {
   const { resultsLoading, results } = useSearch(db, query);
 
-  // Filter results by selected space
+  // Filter results by selected Space
   const filteredResults =
     selectedSpace === "all"
       ? results?.filter((block) => config.config?.getEnabledSpaces().some((space) => space.spaceID === block.spaceID))
@@ -102,7 +102,7 @@ const handleListView = ({ appExists, db, query, setQuery, config, selectedSpace,
   const spaces = config.config?.getAllSpacesForDropdown() || [];
   const showSpaceDropdown = spaces.length > 1;
 
-  // Parse date for potential daily note prioritization (supports natural language)
+  // Parse date for potential Daily Note prioritization (supports natural language)
   const parsedDate = parseFlexibleDate(query.trim()) || undefined;
 
   const listBlocks = (
@@ -140,7 +140,7 @@ const handleDetailedView = ({
 }: ViewParams) => {
   const { resultsLoading, results } = useDocumentSearch(db, query);
 
-  // Filter results by selected space
+  // Filter results by selected Space
   const filteredResults =
     selectedSpace === "all"
       ? results?.filter((doc) => config.config?.getEnabledSpaces().some((space) => space.spaceID === doc.block.spaceID))

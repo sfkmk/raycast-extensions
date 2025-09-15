@@ -43,7 +43,7 @@ export const APPEND_POSITIONS = {
 export const PREFERENCE_FIELDS = {
   timeFormat: {
     // Default changed from "HH:mm" to "HH:mm:" to provide better visual separation
-    // between timestamp and content when formatting daily note entries
+    // between timestamp and content when formatting Daily Note entries
     default: "HH:mm:",
     placeholder: "HH:mm:",
     info: "Custom time format pattern. Examples: HH:mm: (14:30:), h:mm A (2:30 PM), HH:mm:ss (14:30:45). Patterns: H/HH=24h, h/hh=12h, mm=minutes, ss=seconds, A/a=AM/PM",
@@ -70,6 +70,6 @@ export const ERROR_MESSAGES = {
   CONFIG: {
     CRAFT_NOT_INSTALLED: "Craft app is not installed",
     SPACE_NOT_FOUND: "Space not found or is disabled",
-    SETTINGS_LOAD_FAILED: "Failed to load space settings",
+    SETTINGS_LOAD_FAILED: "Failed to load Space settings",
   },
 } as const;

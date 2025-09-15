@@ -11,14 +11,14 @@ import {
 import { prioritizeDailyNotes, combineBlockResults } from "../utils/searchHelpers";
 
 /**
- * Consolidates duplicate entries, particularly Task Inbox/Logbook per space
- * When both Task Inbox and Task Logbook exist in same space, only Task Logbook is kept
+ * Consolidates duplicate entries, particularly Task Inbox/Logbook per Space
+ * When both Task Inbox and Task Logbook exist in same Space, only Task Logbook is kept
  */
 const consolidateDuplicates = (blocks: Block[]): Block[] => {
   const result: Block[] = [];
   const taskEntriesBySpace = new Map<string, Block[]>();
 
-  // Collect task entries by space
+  // Collect task entries by Space
   blocks.forEach((block) => {
     if (block.entityType === "document") {
       const normalizedContent = block.content.toLowerCase().trim();
@@ -50,7 +50,7 @@ const consolidateDuplicates = (blocks: Block[]): Block[] => {
       const isTaskInbox = normalizedContent === "task inbox" || normalizedDocName === "task inbox";
 
       if (isTaskInbox) {
-        // Check if Task Logbook exists in same space
+        // Check if Task Logbook exists in same Space
         const taskEntries = taskEntriesBySpace.get(block.spaceID) || [];
         const hasTaskLogbook = taskEntries.some((entry) => {
           const entryContent = entry.content.toLowerCase().trim();
@@ -58,7 +58,7 @@ const consolidateDuplicates = (blocks: Block[]): Block[] => {
           return entryContent === "task logbook" || entryDocName === "task logbook";
         });
 
-        // Skip Task Inbox if Task Logbook exists in same space
+        // Skip Task Inbox if Task Logbook exists in same Space
         if (!hasTaskLogbook) {
           result.push(block);
         }
@@ -132,7 +132,7 @@ export default function useSearch({ databasesLoading, databases }: UseDB, text: 
     // Consolidate duplicates (e.g., Task Inbox when Task Logbook exists)
     results = consolidateDuplicates(results);
 
-    // Check if query can be parsed as a date and prioritize daily notes
+    // Check if query can be parsed as a date and prioritize Daily Notes
     const parsedDate = parseFlexibleDate(text.trim());
     if (parsedDate) {
       results = prioritizeDailyNotes(results, parsedDate);
@@ -140,7 +140,9 @@ export default function useSearch({ databasesLoading, databases }: UseDB, text: 
 
     setState({ results, resultsLoading: false });
     console.debug(
-      `got ${results.length} results for query search '${text}'${isTaskQuery ? " (task expanded)" : ""}${parsedDate ? " (date prioritized)" : ""}`,
+      `got ${results.length} results for query search '${text}'${isTaskQuery ? " (task expanded)" : ""}${
+        parsedDate ? " (date prioritized)" : ""
+      }`
     );
   }, [databasesLoading, text]);
 

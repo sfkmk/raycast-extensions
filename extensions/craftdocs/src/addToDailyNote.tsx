@@ -73,14 +73,14 @@ export default function AddToDailyNote() {
   const today = new Date();
   const dateString = formatCraftInternalDate(today);
 
-  // Use useSearch hook to get document blocks matching today's date string
+  // Use useSearch hook to get Document Blocks matching today's date string
   const { resultsLoading, results } = useSearch(db, dateString);
 
-  // Find daily note blockId from search results and selected space
+  // Find Daily Note blockId from search results and selected Space
   const getDailyNoteBlockId = (): string | null => {
     if (!results) return null;
     const dailyNotes = results.filter(
-      (block) => block.entityType === "document" && block.spaceID === formValues.spaceId,
+      (block) => block.entityType === "document" && block.spaceID === formValues.spaceId
     );
     if (dailyNotes.length > 0) {
       return dailyNotes[0].id;
@@ -88,7 +88,7 @@ export default function AddToDailyNote() {
     return null;
   };
 
-  // Set default space when config loads, if none selected yet
+  // Set default Space when config loads, if none selected yet
   useEffect(() => {
     if (config && config.primarySpace() && !formValues.spaceId) {
       setFormValues((prev) => ({
@@ -119,7 +119,7 @@ export default function AddToDailyNote() {
     Clipboard.copy(finalContent);
 
     const position = preferences.appendPosition === "beginning" ? "prepended to" : "appended to";
-    showHUD(`✅ Content ${position} daily note (also copied to clipboard)`);
+    showHUD(`✅ Content ${position} Daily Note (also copied to clipboard)`);
 
     popToRoot();
     closeMainWindow();
@@ -139,7 +139,7 @@ export default function AddToDailyNote() {
     }&content=${encodeURIComponent(finalContent)}&index=${index}`;
   };
 
-  // Generate fallback URL when no daily note exists
+  // Generate fallback URL when no Daily Note exists
   const getFallbackUrl = () => {
     if (!formValues.spaceId) return null;
     return `craftdocs://openByQuery?query=today&spaceId=${formValues.spaceId}`;
@@ -191,10 +191,10 @@ export default function AddToDailyNote() {
       <Form.TextArea
         id="content"
         title="Content"
-        placeholder="What would you like to add to today's daily note?"
+        placeholder="What would you like to add to today's Daily Note?"
         value={formValues.content}
         onChange={(value) => setFormValues((prev) => ({ ...prev, content: value }))}
-        info="This content will be added to today's daily note"
+        info="This content will be added to today's Daily Note"
       />
       <Form.Dropdown
         id="spaceId"

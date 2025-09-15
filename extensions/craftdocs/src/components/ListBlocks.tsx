@@ -58,7 +58,7 @@ export default function ListBlocks(params: ListBlocksParams) {
         .map((entry) => ({ ...entry, isCustomEntry: true as const })),
       ...blocks,
     ],
-    [customEntries, blocks],
+    [customEntries, blocks]
   );
 
   return (
@@ -75,7 +75,7 @@ export default function ListBlocks(params: ListBlocksParams) {
               url={createDocumentUrl(
                 spaceID,
                 `Search results for "${query}"`,
-                generateSearchResultsMarkdown(blocks, query, config),
+                generateSearchResultsMarkdown(blocks, query, config)
               )}
               shortcut={{ modifiers: ["shift", "cmd"], key: "enter" }}
             />
@@ -122,7 +122,7 @@ export default function ListBlocks(params: ListBlocksParams) {
                 const dailyNoteExists = blocks.some(
                   (block) =>
                     block.entityType === "document" &&
-                    (block.documentName === isoDateString || block.content === isoDateString),
+                    (block.documentName === isoDateString || block.content === isoDateString)
                 );
 
                 return dailyNoteExists ? null : (
@@ -130,7 +130,7 @@ export default function ListBlocks(params: ListBlocksParams) {
                     title={`Create the Daily Note for '${formatDailyNoteTitle(
                       isoDateString,
                       dateDisplayFormat,
-                      !showCurrentYear,
+                      !showCurrentYear
                     )}'`}
                     icon={Icon.Calendar}
                     actions={
@@ -201,7 +201,7 @@ const CustomEntryItem = ({
                 url={createDocumentUrl(
                   spaceID,
                   `Search results for "${query}"`,
-                  generateSearchResultsMarkdown(allResults, query, config),
+                  generateSearchResultsMarkdown(allResults, query, config)
                 )}
                 shortcut={{ modifiers: ["shift", "cmd"], key: "enter" }}
               />
@@ -238,7 +238,7 @@ const BlockItem = ({
 }) => {
   const spaceDisplayName = config?.getSpaceDisplayName(block.spaceID) || block.spaceID;
 
-  // Format document titles if they match ISO date pattern
+  // Format Document titles if they match ISO date pattern
   // Use consistent formatting utilities
   const formattedTitle = formatResultTitle(block, dateDisplayFormat, !showCurrentYear, enableCustomEntries, parsedDate);
   const formattedDocumentName = formatResultSubtitle(block, dateDisplayFormat, !showCurrentYear);
@@ -250,7 +250,7 @@ const BlockItem = ({
       if (enableCustomEntries && analyzeTaskEntry(block).isTaskEntry) {
         return Icon.List;
       }
-      // Check if this is a daily note
+      // Check if this is a Daily Note
       const isContentISODate = /^\d{4}\.\d{2}\.\d{2}$/.test(block.content);
       const isDocumentNameISODate = block.documentName ? /^\d{4}\.\d{2}\.\d{2}$/.test(block.documentName) : false;
       if (isContentISODate || isDocumentNameISODate) {
@@ -258,7 +258,7 @@ const BlockItem = ({
       }
       return Icon.Document;
     } else {
-      // Block within a document
+      // Block within a Document
       if (enableCustomEntries && analyzeTaskEntry(block).isTaskEntry) {
         return Icon.CheckCircle;
       }
@@ -299,7 +299,7 @@ const BlockItem = ({
                 url={createDocumentUrl(
                   spaceID,
                   `Search results for "${query}"`,
-                  generateSearchResultsMarkdown(allResults, query, config),
+                  generateSearchResultsMarkdown(allResults, query, config)
                 )}
                 shortcut={{ modifiers: ["shift", "cmd"], key: "enter" }}
               />
@@ -312,9 +312,9 @@ const BlockItem = ({
 };
 
 /**
- * Checks if a block is a task-related entry (Task Inbox or Task Logbook).
+ * Checks if a Block is a task-related entry (Task Inbox or Task Logbook).
  *
- * @param block - The block to check
+ * @param block - The Block to check
  * @returns Object with task type information
  */
 function analyzeTaskEntry(block: Block): { isTaskInbox: boolean; isTaskLogbook: boolean; isTaskEntry: boolean } {

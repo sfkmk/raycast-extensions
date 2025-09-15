@@ -3,13 +3,13 @@
  */
 
 /**
- * Creates a Craft document URL with the given parameters
+ * Creates a Craft Document URL with the given parameters
  *
- * @param spaceID - The space ID where the document should be created
- * @param title - The document title
- * @param content - The markdown content for the document
+ * @param spaceID - The Space ID where the Document should be created
+ * @param title - The Document title
+ * @param content - The markdown content for the Document
  * @param folderId - Optional folder ID (defaults to empty string for root)
- * @returns Complete Craft URL for document creation
+ * @returns Complete Craft URL for Document creation
  */
 export function createDocumentUrl(spaceID: string, title: string, content: string, folderId = ""): string {
   if (!spaceID?.trim()) {
@@ -28,11 +28,11 @@ export function createDocumentUrl(spaceID: string, title: string, content: strin
 }
 
 /**
- * Creates a Craft URL to open a specific block
+ * Creates a Craft URL to open a specific Block
  *
- * @param blockId - The block ID to open
- * @param spaceId - The space ID containing the block
- * @returns Complete Craft URL for opening the block
+ * @param blockId - The Block ID to open
+ * @param spaceId - The Space ID containing the Block
+ * @returns Complete Craft URL for opening the Block
  */
 export function createBlockUrl(blockId: string, spaceId: string): string {
   if (!blockId?.trim()) {
@@ -46,10 +46,10 @@ export function createBlockUrl(blockId: string, spaceId: string): string {
 }
 
 /**
- * Creates a Craft URL to open by query (e.g., for daily notes)
+ * Creates a Craft URL to open by query (e.g., for Daily Notes)
  *
  * @param query - The query to search for (e.g., "today", date string)
- * @param spaceId - The space ID to search in
+ * @param spaceId - The Space ID to search in
  * @returns Complete Craft URL for query-based opening
  */
 export function createQueryUrl(query: string, spaceId: string): string {
@@ -64,13 +64,13 @@ export function createQueryUrl(query: string, spaceId: string): string {
 }
 
 /**
- * Creates a Craft URL to create a new block in a specific parent
+ * Creates a Craft URL to create a new Block in a specific parent
  *
- * @param parentBlockId - The parent block ID
- * @param spaceId - The space ID
- * @param content - The content for the new block
- * @param index - Position index for the new block
- * @returns Complete Craft URL for creating a block
+ * @param parentBlockId - The parent Block ID
+ * @param spaceId - The Space ID
+ * @param content - The content for the new Block
+ * @param index - Position index for the new Block
+ * @returns Complete Craft URL for creating a Block
  */
 export function createBlockInParentUrl(parentBlockId: string, spaceId: string, content: string, index: number): string {
   if (!parentBlockId?.trim()) {

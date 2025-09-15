@@ -27,15 +27,15 @@ export const DailyNotes = ({ appExists, config, query, date, selectedSpaceId }: 
     );
   }
 
-  // Use selectedSpaceId if provided, otherwise fallback to primary space
+  // Use selectedSpaceId if provided, otherwise fallback to primary Space
   const targetSpaceId = selectedSpaceId || config.primarySpace()?.spaceID;
   const targetSpace = config.spaces.find((space) => space.spaceID === targetSpaceId);
 
   if (!targetSpaceId || !targetSpace) {
     return (
       <List.EmptyView
-        title="No space selected"
-        description="Please select a space or make sure Craft is initialized"
+        title="No Space selected"
+        description="Please select a Space or make sure Craft is initialized"
         icon={"command-icon-small.png"}
       />
     );

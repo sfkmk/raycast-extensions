@@ -16,7 +16,7 @@ Space IDs are unique identifiers that Craft uses internally to distinguish betwe
 
 - **Better Organization**: Instead of seeing cryptic IDs like "1ab23c45-67de-89f0-1g23-hijk456789l0", you can rename them to names like "Personal Space" or "Team Space"
 - **Space Management**: Enable or disable specific Spaces across all extension commands
-- **Consistent Naming**: Use the same space names throughout all Craft extension commands
+- **Consistent Naming**: Use the same Space names throughout all Craft extension commands
 
 ## Step-by-Step Guide
 
@@ -24,10 +24,10 @@ Space IDs are unique identifiers that Craft uses internally to distinguish betwe
 Navigate to any Space you want to identify.
 
 ### 2. Open Any Document
-Navigate to any document within that space.
+Navigate to any Document within that Space.
 
 ### 3. Right-Click (Secondary Click)
-Right-click on any block within the document.
+Right-click on any Block within the Document.
 
 ### 4. Copy the Deeplink
 From the context menu that appears:
@@ -48,24 +48,24 @@ In this example: \`1ab23c45-67de-89f0-1g23-hijk456789l0\`
 ### 6. Use in Manage Spaces
 Now you can use the Manage Spaces command to:
 - Rename this cryptic ID as you wish
-- Enable or disable this space across all extension commands
+- Enable or disable this Space across all extension commands
 
 ## Tips
 
-- **Multiple Spaces**: Repeat this process for each space you want to manage
-- **Any Block Works**: You can right-click on any block in a space to get its Space ID
-- **Consistent IDs**: The Space ID remains the same for all blocks within the same space
+- **Multiple Spaces**: Repeat this process for each Space you want to manage
+- **Any Block Works**: You can right-click on any Block in a Space to get its Space ID
+- **Consistent IDs**: The Space ID remains the same for all Blocks within the same Space
 - **One-Time Setup**: Once you've renamed your Spaces, you won't need to do this again
 
 ## Troubleshooting
 
 **Can't find "Copy As" option?**
-- Make sure you're right-clicking directly on text or a block, not empty space
-- Try right-clicking on a document title in the sidebar
+- Make sure you're right-clicking directly on text or a Block, not empty Space
+- Try right-clicking on a Document title in the sidebar
 
 **Space ID looks different?**
 - Space IDs are always long strings of letters, numbers, and dashes
-- Each space has a unique ID - they should all look different
+- Each Space has a unique ID - they should all look different
 
 `;
 

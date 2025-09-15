@@ -18,8 +18,8 @@ export default async function Command() {
     const primarySpace = config.primarySpace();
     if (!primarySpace) {
       await showToast({
-        title: "No primary space found",
-        message: "Use Manage Spaces command to set up your primary space",
+        title: "No primary Space found",
+        message: "Use Manage Spaces command to set up your primary Space",
         style: Toast.Style.Failure,
       });
       return;
@@ -27,8 +27,8 @@ export default async function Command() {
 
     if (!primarySpace.isEnabled) {
       await showToast({
-        title: "Primary space is disabled",
-        message: "Enable your primary space in Manage Spaces command",
+        title: "Primary Space is disabled",
+        message: "Enable your primary Space in Manage Spaces command",
         style: Toast.Style.Failure,
       });
       return;
@@ -38,13 +38,13 @@ export default async function Command() {
     await open(url);
 
     await showToast({
-      title: "Opening daily note",
+      title: "Opening Daily Note",
       message: `Opening today's note in ${config.getSpaceDisplayName(primarySpace.spaceID)}`,
       style: Toast.Style.Success,
     });
   } catch (error) {
     await showToast({
-      title: "Failed to open daily note",
+      title: "Failed to open Daily Note",
       message: error instanceof Error ? error.message : "Make sure Craft is installed and running",
       style: Toast.Style.Failure,
     });

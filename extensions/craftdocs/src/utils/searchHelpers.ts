@@ -52,9 +52,9 @@ export function combineBlockResults(mainResults: Block[], expandedResults: Block
 
 /**
  * Combines multiple DocBlock[] arrays while avoiding duplicates.
- * Used to merge results from main document search, expanded searches, and ISO date searches.
+ * Used to merge results from main Document search, expanded searches, and ISO date searches.
  *
- * @param mainResults - Primary document search results
+ * @param mainResults - Primary Document search results
  * @param expandedResults - Results from expanded task queries
  * @param isoResults - Optional results from ISO date search
  * @returns Combined and deduplicated DocBlock array
@@ -99,7 +99,7 @@ export function combineDocBlockResults(
 
 /**
  * Prioritize Daily Notes for date-like queries
- * @param blocks - Array of blocks to sort
+ * @param blocks - Array of Blocks to sort
  * @param parsedDate - Optional parsed date to match against
  * @returns Sorted array with Daily Notes first
  */
@@ -109,12 +109,12 @@ export const prioritizeDailyNotes = (blocks: Block[], parsedDate?: Date): Block[
   // Format the parsed date to match Craft's internal format (YYYY.MM.DD)
   const isoFormat = formatDateToISO(parsedDate);
 
-  // Separate daily notes from other blocks
+  // Separate Daily Notes from other Blocks
   const dailyNotes: Block[] = [];
   const otherBlocks: Block[] = [];
 
   blocks.forEach((block) => {
-    // Check if this is a daily note by looking at document names and content
+    // Check if this is a Daily Note by looking at Document names and content
     if (
       block.entityType === "document" &&
       (block.documentName === isoFormat ||
@@ -128,7 +128,7 @@ export const prioritizeDailyNotes = (blocks: Block[], parsedDate?: Date): Block[
     }
   });
 
-  // Return daily notes first, then other blocks
+  // Return Daily Notes first, then other Blocks
   return [...dailyNotes, ...otherBlocks];
 };
 
@@ -143,12 +143,12 @@ const formatDateToISO = (date: Date): string => {
 };
 
 /**
- * Generates markdown content for search results document
+ * Generates markdown content for search results Document
  * This is specific to search functionality and not intended for reuse
  *
- * @param results - Array of search results (blocks and custom entries)
+ * @param results - Array of search results (Blocks and Custom Entries)
  * @param query - The search query used
- * @param config - Configuration object for space names
+ * @param config - Configuration object for Space names
  * @returns Markdown string with all results as links
  */
 export function generateSearchResultsMarkdown(results: ExtendedBlock[], query: string, config: Config | null): string {
@@ -178,17 +178,17 @@ export function generateSearchResultsMarkdown(results: ExtendedBlock[], query: s
       url = item.url;
       spaceInfo = config?.getSpaceDisplayName(item.spaceID);
     } else {
-      // Regular block
+      // Regular Block
       title = formatResultTitle(item, dateDisplayFormat, hideCurrentYear, enableCustomEntries);
       subtitle = formatResultSubtitle(item, dateDisplayFormat, hideCurrentYear);
       url = createBlockUrl(item.id, item.spaceID);
       spaceInfo = config?.getSpaceDisplayName(item.spaceID);
     }
 
-    // Combine title and subtitle if present (for blocks)
+    // Combine title and subtitle if present (for Blocks)
     let displayTitle = ensureSafeTitle(title, [`Result ${index + 1}`]);
     if (subtitle) {
-      // For blocks, include the document name as part of the title
+      // For Blocks, include the Document name as part of the title
       displayTitle = `${displayTitle} (from: ${ensureSafeTitle(subtitle, ["Unknown Document"])})`;
     }
 
@@ -196,7 +196,7 @@ export function generateSearchResultsMarkdown(results: ExtendedBlock[], query: s
     const truncatedTitle = displayTitle.length > 150 ? displayTitle.substring(0, 147) + "..." : displayTitle;
     const escapedTitle = truncatedTitle.replace(/[[\]]/g, "\\$&");
 
-    // Add space info if present and more than one space is enabled
+    // Add Space info if present and more than one Space is enabled
     const spaceInfoText = spaceInfo && config && config.getEnabledSpaces().length > 1 ? ` (${spaceInfo})` : "";
 
     // Use simple bullet format without emoji

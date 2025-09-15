@@ -47,7 +47,7 @@ export default function dailyNotes() {
     cache.set(CACHE_KEYS.DAILY_NOTES_SPACE_ID, newValue);
   };
 
-  // Set default space when config loads
+  // Set default Space when config loads
   useEffect(() => {
     if (config && config.primarySpace() && !selectedSpaceId) {
       const primarySpaceId = config.primarySpace()?.spaceID || "";
@@ -56,7 +56,7 @@ export default function dailyNotes() {
     }
   }, [config, selectedSpaceId]);
 
-  // Reset to primary space if selected space no longer exists
+  // Reset to primary Space if selected Space no longer exists
   useEffect(() => {
     if (selectedSpaceId && config && !config.getEnabledSpaces().find((s) => s.spaceID === selectedSpaceId)) {
       const primarySpaceId = config.primarySpace()?.spaceID || "";

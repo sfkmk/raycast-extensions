@@ -83,10 +83,10 @@ export default function ManageSpaces() {
   useEffect(() => {
     if (showTutorial && !configLoading) {
       if (config && config.spaces.length > 0) {
-        // Show tutorial immediately when spaces are found
+        // Show tutorial immediately when Spaces are found
         showSpaceIdTutorial();
       } else {
-        // Show tutorial even if no spaces found, to help with setup
+        // Show tutorial even if no Spaces found, to help with setup
         showSpaceIdTutorial();
       }
       setShowTutorial(false);
@@ -106,11 +106,11 @@ export default function ManageSpaces() {
     const space = config.spaces.find((s) => s.spaceID === spaceID);
     if (!space) return;
 
-    // Don't allow disabling the primary space
+    // Don't allow disabling the primary Space
     if (space.primary && currentlyEnabled) {
       await showToast({
-        title: "Cannot disable primary space",
-        message: "The primary space cannot be disabled",
+        title: "Cannot disable primary Space",
+        message: "The primary Space cannot be disabled",
         style: Toast.Style.Failure,
       });
       return;
@@ -119,8 +119,8 @@ export default function ManageSpaces() {
     const confirmed = await confirmAlert({
       title: currentlyEnabled ? "Disable Space" : "Enable Space",
       message: currentlyEnabled
-        ? "This space will be hidden from search results and other commands."
-        : "This space will be shown in search results and other commands.",
+        ? "This Space will be hidden from search results and other commands."
+        : "This Space will be shown in search results and other commands.",
       primaryAction: { title: currentlyEnabled ? "Disable" : "Enable", style: Alert.ActionStyle.Default },
     });
 

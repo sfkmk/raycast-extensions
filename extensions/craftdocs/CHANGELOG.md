@@ -3,10 +3,10 @@
 ## [UX improvements] - {PR_MERGE_DATE}
 
 - ⭐ `Open Daily Note` Added new command to quickly open today's Daily Note of the "Primary" Space.
-- ⭐ `Blocks Search` Added new "Create Doc from Results" option to create a new document with all search results from the current query. Find it in the Actions Menu via ⌘+K or directly with ⇧+⌘+⏎ on any result.
+- ⭐ `Blocks Search` Added new "Create Doc from Results" option to create a new Document with all search results from the current query. Find it in the Actions Menu via ⌘+K or directly with ⇧+⌘+⏎ on any result.
 - `Blocks Search` Added new "Copy Deeplink to Clipboard" option to quickly copy the deeplink of an entry in the Actions Menu via ⌘+K or directly with ⌘+L on any result.
-- `Blocks Search` Hide (redundant) subtitles for documents in results; show subtitles only for blocks.
-- `Blocks Search` Swap the display of title and subtitle for block entries to reflect user intent; title=query occurrence, subtitle=parent-document.
+- `Blocks Search` Hide (redundant) subtitles for Documents in results; show subtitles only for Blocks.
+- `Blocks Search` Swap the display of title and subtitle for Block entries to reflect user intent; title=query occurrence, subtitle=parent-document.
 - `Blocks Search` Queries for date-like patterns prioritize Daily Note results.
 - `Blocks Search` Enhanced standard and natural language date parsing; date parsing now understands many LTR - languages.
 - `Blocks Search` Added natural language date parsing.
@@ -26,15 +26,15 @@
 
 ## [Feature] - 2025-08-11
 
-- Added a new `Add to Daily Note` command with intelligent daily note detection and configurable append/prepend position.
+- Added a new `Add to Daily Note` command with intelligent Daily Note detection and configurable append/prepend position.
 - Added timestamp toggle and customizable prefix/suffix options for flexible content formatting.
 - Added Space Management functionality with new `Manage Spaces` command
 - Added ability to rename Spaces with custom names instead of Space IDs
-- Added space enable/disable functionality to hide unused Spaces extension-wide
-- Added space filtering dropdowns in Blocks Search and Daily Notes commands
+- Added Space enable/disable functionality to hide unused Spaces extension-wide
+- Added Space filtering dropdowns in Blocks Search and Daily Notes commands
 - Added persistent Space settings that sync across all commands
-- Improved visual distinction between documents and blocks with better icons (Document vs Text)
-- Fixed React key conflicts when multiple Spaces contain blocks with identical names
+- Improved visual distinction between Documents and Blocks with better icons (Document vs Text)
+- Fixed React key conflicts when multiple Spaces contain Blocks with identical names
 - Enhanced user experience with consistent Space naming throughout the extension
 - Updated dependencies via `npm audit fix`
 

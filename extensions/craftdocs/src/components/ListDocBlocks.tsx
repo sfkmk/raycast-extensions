@@ -60,7 +60,7 @@ export default function ListDocBlocks({
         />
       ))}
       {query.length > 0 && (
-        <List.Section title="Create new document">
+        <List.Section title="Create new Document">
           <CreateDocumentItem query={query} spaceID={config?.primarySpace()?.spaceID || ""} />
         </List.Section>
       )}

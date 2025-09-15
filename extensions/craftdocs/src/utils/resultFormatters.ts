@@ -13,7 +13,7 @@ import Config from "../Config";
 import { createBlockUrl } from "./craftUrls";
 
 /**
- * Format a block or document title with all visual transformations
+ * Format a Block or Document title with all visual transformations
  * This ensures consistent rendering between UI and markdown output
  */
 export function formatResultTitle(
@@ -40,18 +40,18 @@ export function formatResultTitle(
       return "Tasks";
     }
 
-    // Format daily note titles (no emoji conversion)
+    // Format Daily Note titles (no emoji conversion)
     const rawTitle = formatDailyNoteTitle(block.documentName || block.content, dateDisplayFormat, hideCurrentYear);
     return rawTitle;
   } else {
-    // For blocks, use the content as-is (no emoji conversion)
+    // For Blocks, use the content as-is (no emoji conversion)
     return block.content;
   }
 }
 
 /**
- * Format the subtitle/document name for blocks
- * Returns undefined for documents, formatted name for blocks
+ * Format the subtitle/Document name for Blocks
+ * Returns undefined for Documents, formatted name for Blocks
  */
 export function formatResultSubtitle(
   item: ExtendedBlock,
@@ -68,7 +68,7 @@ export function formatResultSubtitle(
   if (block.entityType === "document") {
     return undefined;
   } else {
-    // For blocks, show the document name as subtitle
+    // For Blocks, show the Document name as subtitle
     const formattedDocumentName = block.documentName
       ? formatDailyNoteTitle(block.documentName, dateDisplayFormat, hideCurrentYear)
       : block.documentName;
@@ -106,7 +106,7 @@ export function getResultEmoji(item: ExtendedBlock, enableCustomEntries: boolean
   const block = item as Block;
 
   if (block.entityType === "document") {
-    // Check for special document types
+    // Check for special Document types
     if (
       enableCustomEntries &&
       (isTaskInboxDocument(block.content, block.entityType) ||
@@ -119,7 +119,7 @@ export function getResultEmoji(item: ExtendedBlock, enableCustomEntries: boolean
       return "📄";
     }
   } else {
-    // Block within a document
+    // Block within a Document
     if (enableCustomEntries && isTaskInboxBlock(block.documentName)) {
       return "☑️";
     } else if (
@@ -173,7 +173,7 @@ export function formatSearchResult(
     const block = item as Block;
     url = createBlockUrl(block.id, block.spaceID);
 
-    // Add space info if multiple spaces exist
+    // Add Space info if multiple spaces exist
     if (config && config.getEnabledSpaces().length > 1) {
       spaceInfo = config.getSpaceDisplayName(block.spaceID);
     }

@@ -127,10 +127,10 @@ export const ensureSafeRegex = (pattern: string | undefined): RegExp => {
 };
 
 /**
- * Validates space dropdown data to ensure title and id are present.
+ * Validates Space dropdown data to ensure title and id are present.
  *
  * @param space - Space object to validate
- * @returns True if space has valid title and id
+ * @returns True if Space has valid title and id
  */
 export const isValidSpaceOption = (space: unknown): space is { id: string; title: string } => {
   return Boolean(

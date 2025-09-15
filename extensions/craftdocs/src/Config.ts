@@ -57,7 +57,7 @@ export default class Config {
   }
 
   primarySpace = () => {
-    // First check if user has set a custom primary space
+    // First check if user has set a custom primary Space
     const userPrimarySpaceId = this.spaceSettings._primarySpaceId;
     if (userPrimarySpaceId) {
       const userPrimarySpace = this.spaces.find((space) => space.spaceID === userPrimarySpaceId && space.isEnabled);
@@ -66,7 +66,7 @@ export default class Config {
       }
     }
 
-    // Fall back to the original primary space (determined by file structure)
+    // Fall back to the original primary Space (determined by file structure)
     return this.spaces.find((space) => space.primary);
   };
 
@@ -92,12 +92,12 @@ export default class Config {
   // Main Realm file is named in this way:
   // LukiMain_e95db95e-286c-e7c9-276e-c61b378d1e1c_2E3178A2-26CD-4991-BBCB-67F097040B59.realm
   //          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  //          ID of the main space
+  //          ID of the main Space
   //
   // Additional Spaces are named like this:
   // LukiMain_e95db95e-286c-e7c9-276e-c61b378d1e1c||b3fccbd6-1e8e-a73f-16d5-9d14a9f17793_2E3178A2-26CD-4991-BBCB-67F097040B59.realm
   //                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  //                                                ID of secondary spaces
+  //                                                ID of secondary Spaces
   //
   // With the provided string, this function selects ID or returns undefined.
   private extractSpaceIDs = (str: string): string | undefined => {
@@ -198,19 +198,19 @@ export default class Config {
         this.spaceSettings = {};
       }
     } catch (error) {
-      console.warn("[Config] Failed to load space settings, using defaults:", error);
+      console.warn("[Config] Failed to load Space settings, using defaults:", error);
       this.spaceSettings = {};
     }
   };
 
   setPrimarySpace = (spaceID: string): void => {
-    // Validate that the space exists and is enabled
+    // Validate that the Space exists and is enabled
     const space = this.spaces.find((s) => s.spaceID === spaceID && s.isEnabled);
     if (!space) {
       throw new Error("Space not found or is disabled");
     }
 
-    // Set the new primary space
+    // Set the new primary Space
     this.spaceSettings._primarySpaceId = spaceID;
     this.saveSpaceSettings();
   };
@@ -233,7 +233,7 @@ export default class Config {
 
       writeFileSync(SPACES_CONFIG_FILE, JSON.stringify(this.spaceSettings, null, 2));
     } catch (error) {
-      console.error("[Config] Failed to save space settings:", error);
+      console.error("[Config] Failed to save Space settings:", error);
     }
   };
 }

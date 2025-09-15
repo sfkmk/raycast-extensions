@@ -115,12 +115,12 @@ function isPartialMatch(query: string, searchTerms: string[]): boolean {
  * Filters custom entries based on search query and returns populated entries for matching Spaces.
  *
  * This function searches through predefined custom navigation entries (like "Starred Documents",
- * "All Tags", etc.), dynamic space entries, and emoji entries, returning those that match the query.
- * Each matching entry is populated with URLs for all provided space IDs.
+ * "All Tags", etc.), dynamic Space entries, and emoji entries, returning those that match the query.
+ * Each matching entry is populated with URLs for all provided Space IDs.
  *
  * @param query - The search query string to match against entry titles and alternatives
- * @param spaceIDs - Array of space IDs to generate entries for
- * @param config - Optional Config instance to enable dynamic space entries
+ * @param spaceIDs - Array of Space IDs to generate entries for
+ * @param config - Optional Config instance to enable dynamic Space entries
  * @returns Array of populated custom entries that match the query
  *
  * @example
@@ -129,7 +129,7 @@ function isPartialMatch(query: string, searchTerms: string[]): boolean {
  * // Returns entries for "Starred Documents" in both Spaces
  *
  * const entriesWithSpaces = filterCustomEntries("My Space", ["space1"], config);
- * // Returns space entries if "My Space" matches a space name
+ * // Returns Space entries if "My Space" matches a Space name
  * ```
  */
 export function filterCustomEntries(query: string, spaceIDs: string[], config?: Config): PopulatedCustomEntry[] {
@@ -140,7 +140,7 @@ export function filterCustomEntries(query: string, spaceIDs: string[], config?: 
   try {
     const results: PopulatedCustomEntry[] = [];
 
-    // Process entries for each space
+    // Process entries for each Space
     for (const spaceID of spaceIDs) {
       // First, handle static custom entries
       for (const entry of CUSTOM_ENTRIES) {
@@ -167,7 +167,7 @@ export function filterCustomEntries(query: string, spaceIDs: string[], config?: 
                 isExactMatch: exactMatch,
               });
             } catch (_urlError) {
-              // Skip this space if URL generation fails
+              // Skip this Space if URL generation fails
               continue;
             }
           }
@@ -177,7 +177,7 @@ export function filterCustomEntries(query: string, spaceIDs: string[], config?: 
         }
       }
 
-      // Then, handle dynamic space entry for this specific space
+      // Then, handle dynamic Space entry for this specific Space
       if (config) {
         const space = config.getEnabledSpaces().find((s) => s.spaceID === spaceID);
         if (space) {
@@ -205,7 +205,7 @@ export function filterCustomEntries(query: string, spaceIDs: string[], config?: 
                 isExactMatch: exactMatch,
               });
             } catch (_urlError) {
-              // Skip this space if URL generation fails
+              // Skip this Space if URL generation fails
               continue;
             }
           }
@@ -235,7 +235,7 @@ export function filterCustomEntries(query: string, spaceIDs: string[], config?: 
  * @example
  * ```typescript
  * const shouldPrioritize = shouldBiasEntry(block, "task inbox");
- * // Returns true for Task Inbox documents when searching for "task inbox"
+ * // Returns true for Task Inbox Documents when searching for "task inbox"
  * ```
  */
 export function shouldBiasEntry(item: ExtendedBlock, query: string): boolean {
@@ -329,14 +329,14 @@ export function applyCentralizedBias<T extends ExtendedBlock>(allResults: T[], g
 }
 
 /**
- * Checks if a block represents a Task Inbox or Task Logbook document.
+ * Checks if a Block represents a Task Inbox or Task Logbook Document.
  *
- * This function identifies documents that are part of Craft's task management system
- * by checking if their title matches known task-related document names.
+ * This function identifies Documents that are part of Craft's task management system
+ * by checking if their title matches known task-related Document names.
  *
- * @param title - The document title or content to check
+ * @param title - The Document title or content to check
  * @param entityType - The type of entity ("document" expected for positive matches)
- * @returns True if this is a task-related document, false otherwise
+ * @returns True if this is a task-related Document, false otherwise
  *
  * @example
  * ```typescript
@@ -354,13 +354,13 @@ export function isTaskInboxDocument(title: string | undefined, entityType: strin
 }
 
 /**
- * Checks if a block is from the Task Inbox or Task Logbook (based on parent document name).
+ * Checks if a Block is from the Task Inbox or Task Logbook (based on parent Document name).
  *
- * This function identifies blocks that belong to task-related documents by examining
- * their parent document name for task-related keywords.
+ * This function identifies Blocks that belong to task-related Documents by examining
+ * their parent Document name for task-related keywords.
  *
- * @param documentName - The name of the parent document
- * @returns True if the block belongs to a task-related document, false otherwise
+ * @param documentName - The name of the parent Document
+ * @returns True if the Block belongs to a task-related Document, false otherwise
  *
  * @example
  * ```typescript
@@ -378,14 +378,14 @@ export function isTaskInboxBlock(documentName: string | undefined): boolean {
 }
 
 /**
- * Checks if a block represents a daily note based on its content and document name.
+ * Checks if a Block represents a Daily Note based on its content and Document name.
  *
- * This function identifies daily notes by checking if the block's content or document name
+ * This function identifies Daily Notes by checking if the Block's content or Document name
  * matches Craft's internal ISO date format (YYYY.MM.DD) or matches a specific parsed date.
  *
- * @param block - The block to check (must have entityType, content, and optional documentName)
+ * @param block - The Block to check (must have entityType, content, and optional documentName)
  * @param parsedDate - Optional specific date to match against
- * @returns True if this block represents a daily note, false otherwise
+ * @returns True if this Block represents a Daily Note, false otherwise
  *
  * @example
  * ```typescript
@@ -396,7 +396,7 @@ export function isTaskInboxBlock(documentName: string | undefined): boolean {
  */
 export function isDailyNoteBlock(
   block: { entityType: string; documentName?: string; content: string },
-  parsedDate?: Date,
+  parsedDate?: Date
 ): boolean {
   if (block.entityType !== "document") {
     return false;

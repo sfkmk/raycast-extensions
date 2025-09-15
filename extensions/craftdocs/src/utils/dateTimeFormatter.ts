@@ -138,7 +138,7 @@ export function formatDate(date: Date, pattern: string, hideCurrentYear = true):
 }
 
 /**
- * Check if a string matches the ISO daily note pattern (YYYY.MM.DD)
+ * Check if a string matches the ISO Daily Note pattern (YYYY.MM.DD)
  * @param text - The text to check
  * @returns True if the text matches the ISO pattern
  */
@@ -169,7 +169,7 @@ export function parseISODate(isoDateString: string): Date | null {
 }
 
 /**
- * Format a daily note title if it matches ISO pattern, otherwise return original
+ * Format a Daily Note title if it matches ISO pattern, otherwise return original
  * @param title - The title to potentially format
  * @param pattern - The format pattern to use
  * @param hideCurrentYear - Whether to hide the year for current year dates (default: true)
@@ -184,7 +184,7 @@ export function formatDailyNoteTitle(title: string, pattern: string, hideCurrent
 }
 
 /**
- * Generate Craft's internal date format for daily notes (YYYY.MM.DD)
+ * Generate Craft's internal date format for Daily Notes (YYYY.MM.DD)
  * This format is used for the day:// link and database queries
  * @param date - The date to format
  * @returns The Craft internal date format string
@@ -266,7 +266,7 @@ export function parseNaturalLanguageDate(input: string): Date | null {
   if (nextWeekdayMatch) {
     const weekdayIndex = weekdays.indexOf(nextWeekdayMatch[1]);
     const today = now.getDay();
-    let daysAhead = weekdayIndex - today + 7; // Always next week
+    const daysAhead = weekdayIndex - today + 7; // Always next week
 
     return new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysAhead);
   }
@@ -325,7 +325,7 @@ export function parseNaturalLanguageDate(input: string): Date | null {
 
   // Match "Month Day" or "Day Month" patterns
   const monthDayMatch = cleanInput.match(
-    /^(?:(\d{1,2})\s+)?(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))(?:\s+(\d{1,2}))?$/,
+    /^(?:(\d{1,2})\s+)?(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))(?:\s+(\d{1,2}))?$/
   );
 
   if (monthDayMatch) {
