@@ -4,7 +4,6 @@
 
 - ⭐ `Open Daily Note` Added new command to quickly open today's Daily Note of the "Primary" Space.
 - ⭐ `Blocks Search` Added new "Create Doc from Results" option to create a new document with all search results from the current query. Find it in the Actions Menu via ⌘+K or directly with ⇧+⌘+⏎ on any result.
-- `Blocks Search` Added emoji support: Emojis now display correctly in search results. You can also use fuzzy search terms to find emojis (e.g., "smile" or "robot"). This feature works for most common languages and is set through the "Supported Languages" field in the extension preferences.
 - `Blocks Search` Added new "Copy Deeplink to Clipboard" option to quickly copy the deeplink of an entry in the Actions Menu via ⌘+K or directly with ⌘+L on any result.
 - `Blocks Search` Hide (redundant) subtitles for documents in results; show subtitles only for blocks.
 - `Blocks Search` Swap the display of title and subtitle for block entries to reflect user intent; title=query occurrence, subtitle=parent-document.
