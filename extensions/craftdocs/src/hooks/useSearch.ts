@@ -9,6 +9,69 @@ import {
   searchQueryOnEmptyParams,
 } from "./common";
 import { prioritizeDailyNotes, combineBlockResults } from "../utils/searchHelpers";
+
+/**
+ * Consolidates duplicate entries, particularly Task Inbox/Logbook per space
+ * When both Task Inbox and Task Logbook exist in same space, only Task Logbook is kept
+ */
+const consolidateDuplicates = (blocks: Block[]): Block[] => {
+  const result: Block[] = [];
+  const taskEntriesBySpace = new Map<string, Block[]>();
+
+  // Collect task entries by space
+  blocks.forEach((block) => {
+    if (block.entityType === "document") {
+      const normalizedContent = block.content.toLowerCase().trim();
+      const normalizedDocName = (block.documentName || "").toLowerCase().trim();
+
+      const isTaskEntry =
+        normalizedContent === "task inbox" ||
+        normalizedDocName === "task inbox" ||
+        normalizedContent === "task logbook" ||
+        normalizedDocName === "task logbook" ||
+        normalizedContent === "tasks" ||
+        normalizedDocName === "tasks";
+
+      if (isTaskEntry) {
+        if (!taskEntriesBySpace.has(block.spaceID)) {
+          taskEntriesBySpace.set(block.spaceID, []);
+        }
+        taskEntriesBySpace.get(block.spaceID)?.push(block);
+      }
+    }
+  });
+
+  // Process all blocks and apply consolidation rules
+  blocks.forEach((block) => {
+    if (block.entityType === "document") {
+      const normalizedContent = block.content.toLowerCase().trim();
+      const normalizedDocName = (block.documentName || "").toLowerCase().trim();
+
+      const isTaskInbox = normalizedContent === "task inbox" || normalizedDocName === "task inbox";
+
+      if (isTaskInbox) {
+        // Check if Task Logbook exists in same space
+        const taskEntries = taskEntriesBySpace.get(block.spaceID) || [];
+        const hasTaskLogbook = taskEntries.some((entry) => {
+          const entryContent = entry.content.toLowerCase().trim();
+          const entryDocName = (entry.documentName || "").toLowerCase().trim();
+          return entryContent === "task logbook" || entryDocName === "task logbook";
+        });
+
+        // Skip Task Inbox if Task Logbook exists in same space
+        if (!hasTaskLogbook) {
+          result.push(block);
+        }
+      } else {
+        result.push(block);
+      }
+    } else {
+      result.push(block);
+    }
+  });
+
+  return result;
+};
 import { parseISODate, isISODatePattern } from "../utils/dateTimeFormatter";
 
 export type Block = {
@@ -65,6 +128,9 @@ export default function useSearch({ databasesLoading, databases }: UseDB, text: 
       // Combine main results with expanded task results
       results = combineBlockResults(results, expandedResults);
     }
+
+    // Consolidate duplicates (e.g., Task Inbox when Task Logbook exists)
+    results = consolidateDuplicates(results);
 
     // Check if query looks like a date and prioritize daily notes
     const isDateQuery = isISODatePattern(text.trim()) || /^\d{1,2}\.?\s*[a-zA-ZäöüÄÖÜß]+\s*\d{0,4}$/.test(text.trim());

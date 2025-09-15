@@ -94,6 +94,24 @@ function isExactMatch(query: string, searchTerms: string[]): boolean {
 }
 
 /**
+ * Checks if query partially matches any search term (enhanced searchability)
+ */
+function isPartialMatch(query: string, searchTerms: string[]): boolean {
+  const normalizedQuery = normalizeText(query);
+
+  // Return false if query is too short to avoid noise
+  if (normalizedQuery.length < 2) {
+    return false;
+  }
+
+  return searchTerms.some((term) => {
+    const normalizedTerm = normalizeText(term);
+    // Check if term contains the query or query contains the term
+    return normalizedTerm.includes(normalizedQuery) || normalizedQuery.includes(normalizedTerm);
+  });
+}
+
+/**
  * Filters custom entries based on search query and returns populated entries for matching Spaces.
  *
  * This function searches through predefined custom navigation entries (like "Starred Documents",
@@ -129,10 +147,11 @@ export function filterCustomEntries(query: string, spaceIDs: string[], config?: 
         try {
           const searchTerms = [entry.title, ...entry.alternatives];
 
-          // Check if this entry matches the query
+          // Check if this entry matches the query (exact or partial)
           const exactMatch = isExactMatch(query, searchTerms);
+          const partialMatch = !exactMatch && isPartialMatch(query, searchTerms);
 
-          if (exactMatch) {
+          if (exactMatch || partialMatch) {
             try {
               let url = "";
               if (!entry.isSpecial) {
@@ -172,8 +191,9 @@ export function filterCustomEntries(query: string, spaceIDs: string[], config?: 
 
           const searchTerms = [spaceEntry.title, ...spaceEntry.alternatives];
           const exactMatch = isExactMatch(query, searchTerms);
+          const partialMatch = !exactMatch && isPartialMatch(query, searchTerms);
 
-          if (exactMatch) {
+          if (exactMatch || partialMatch) {
             try {
               const url = spaceEntry.urlTemplate.replace("{spaceId}", spaceID);
               results.push({
@@ -376,7 +396,7 @@ export function isTaskInboxBlock(documentName: string | undefined): boolean {
  */
 export function isDailyNoteBlock(
   block: { entityType: string; documentName?: string; content: string },
-  parsedDate?: Date
+  parsedDate?: Date,
 ): boolean {
   if (block.entityType !== "document") {
     return false;
