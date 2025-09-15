@@ -15,18 +15,23 @@ interface FormValues {
 
 // Helper function to format content with timestamp, prefix, and suffix
 const formatContent = (content: string, preferences: DailyNotePreferences): string => {
-  let finalContent = content;
+  let finalContent = content.trim();
 
   if (preferences.addTimestamp) {
     const now = new Date();
     const timeString = formatTime(now, preferences.timeFormat);
-    finalContent = `**${timeString}**${preferences.contentPrefix}${finalContent}`;
+    const prefix = preferences.contentPrefix.trim();
+    finalContent = `**${timeString}** ${prefix ? prefix + " " : ""}${finalContent}`;
   } else {
-    finalContent = `${preferences.contentPrefix}${finalContent}`;
+    const prefix = preferences.contentPrefix.trim();
+    finalContent = `${prefix ? prefix + " " : ""}${finalContent}`;
   }
 
-  // Add suffix
-  finalContent = `${finalContent}${preferences.contentSuffix}`;
+  // Add suffix with proper spacing
+  const suffix = preferences.contentSuffix.trim();
+  if (suffix) {
+    finalContent = `${finalContent} ${suffix}`;
+  }
 
   return finalContent;
 };

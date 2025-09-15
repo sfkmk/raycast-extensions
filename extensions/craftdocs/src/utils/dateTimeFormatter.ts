@@ -100,6 +100,11 @@ function isCurrentYear(date: Date): boolean {
  * @returns The formatted date string
  */
 export function formatDate(date: Date, pattern: string, hideCurrentYear = true): string {
+  // Add null/undefined check for pattern
+  if (!pattern) {
+    pattern = "EEEE, MMMM d, yyyy"; // Default fallback pattern
+  }
+
   let result = pattern;
 
   // If hiding current year and date is in current year, remove year from pattern

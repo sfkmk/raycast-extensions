@@ -1,19 +1,18 @@
 import { Action, ActionPanel, List } from "@raycast/api";
 import { createQueryUrl } from "../utils/craftUrls";
-import { getDateFormatPreferences } from "../preferences";
-import { formatDate } from "../utils/dateTimeFormatter";
 import * as chrono from "chrono-node";
 
 type DayReference = "today" | "yesterday" | "tomorrow";
 
 export const Shortcut = ({ dayRef, spaceID }: { dayRef: DayReference; spaceID: string }) => {
-  const { dateDisplayFormat, showCurrentYear } = getDateFormatPreferences();
+  // Simple null-safe date parsing like original main branch
   const parsedDate = chrono.parseDate(dayRef);
+  const subtitle = parsedDate ? parsedDate.toDateString() : toTitleCase(dayRef);
 
   return (
     <List.Item
       title={toTitleCase(dayRef)}
-      subtitle={parsedDate ? formatDate(parsedDate, dateDisplayFormat, !showCurrentYear) : dayRef}
+      subtitle={subtitle}
       actions={
         <ActionPanel>
           <Action.Open
