@@ -11,24 +11,39 @@ import { formatTime, formatCraftInternalDate } from "./utils/dateTimeFormatter";
 interface FormValues {
   content: string;
   spaceId: string;
+  // Temporary formatting options (override preferences for this execution)
+  tempAddTimestamp?: boolean;
+  tempTimeFormat?: string;
+  tempContentPrefix?: string;
+  tempContentSuffix?: string;
 }
 
 // Helper function to format content with timestamp, prefix, and suffix
-const formatContent = (content: string, preferences: DailyNotePreferences): string => {
+// Supports temporary formatting overrides
+const formatContent = (content: string, preferences: DailyNotePreferences, formValues: FormValues): string => {
   let finalContent = content.trim();
 
-  if (preferences.addTimestamp) {
+  // Use temporary values if provided, otherwise fall back to preferences
+  const addTimestamp =
+    formValues.tempAddTimestamp !== undefined ? formValues.tempAddTimestamp : preferences.addTimestamp;
+  const timeFormat = formValues.tempTimeFormat || preferences.timeFormat;
+  const contentPrefix =
+    formValues.tempContentPrefix !== undefined ? formValues.tempContentPrefix : preferences.contentPrefix;
+  const contentSuffix =
+    formValues.tempContentSuffix !== undefined ? formValues.tempContentSuffix : preferences.contentSuffix;
+
+  if (addTimestamp) {
     const now = new Date();
-    const timeString = formatTime(now, preferences.timeFormat);
-    const prefix = preferences.contentPrefix.trim();
+    const timeString = formatTime(now, timeFormat);
+    const prefix = contentPrefix.trim();
     finalContent = `**${timeString}** ${prefix ? prefix + " " : ""}${finalContent}`;
   } else {
-    const prefix = preferences.contentPrefix.trim();
+    const prefix = contentPrefix.trim();
     finalContent = `${prefix ? prefix + " " : ""}${finalContent}`;
   }
 
   // Add suffix with proper spacing
-  const suffix = preferences.contentSuffix.trim();
+  const suffix = contentSuffix.trim();
   if (suffix) {
     finalContent = `${finalContent} ${suffix}`;
   }
@@ -47,6 +62,11 @@ export default function AddToDailyNote() {
   const [formValues, setFormValues] = useState<FormValues>({
     content: "",
     spaceId: "",
+    // Initialize temporary formatting with current preferences
+    tempAddTimestamp: preferences.addTimestamp,
+    tempTimeFormat: preferences.timeFormat,
+    tempContentPrefix: preferences.contentPrefix,
+    tempContentSuffix: preferences.contentSuffix,
   });
 
   // Format today's date as YYYY.MM.DD (Craft's internal db time format)
@@ -60,7 +80,7 @@ export default function AddToDailyNote() {
   const getDailyNoteBlockId = (): string | null => {
     if (!results) return null;
     const dailyNotes = results.filter(
-      (block) => block.entityType === "document" && block.spaceID === formValues.spaceId
+      (block) => block.entityType === "document" && block.spaceID === formValues.spaceId,
     );
     if (dailyNotes.length > 0) {
       return dailyNotes[0].id;
@@ -92,8 +112,8 @@ export default function AddToDailyNote() {
       return;
     }
 
-    // Format content with timestamp, prefix and suffix
-    const finalContent = formatContent(formValues.content, preferences);
+    // Format content with timestamp, prefix and suffix (including temporary overrides)
+    const finalContent = formatContent(formValues.content, preferences, formValues);
 
     // Always copy to clipboard as safety fallback
     Clipboard.copy(finalContent);
@@ -110,7 +130,7 @@ export default function AddToDailyNote() {
     const parentBlockId = getDailyNoteBlockId();
     if (!parentBlockId || !formValues.spaceId) return null;
 
-    const finalContent = formatContent(formValues.content, preferences);
+    const finalContent = formatContent(formValues.content, preferences, formValues);
 
     const index = preferences.appendPosition === "beginning" ? APPEND_POSITIONS.BEGINNING : APPEND_POSITIONS.END;
 
@@ -174,7 +194,7 @@ export default function AddToDailyNote() {
         placeholder="What would you like to add to today's daily note?"
         value={formValues.content}
         onChange={(value) => setFormValues((prev) => ({ ...prev, content: value }))}
-        info="This content will be added to today's daily note with a timestamp"
+        info="This content will be added to today's daily note"
       />
       <Form.Dropdown
         id="spaceId"
@@ -190,6 +210,47 @@ export default function AddToDailyNote() {
           />
         ))}
       </Form.Dropdown>
+
+      <Form.Separator />
+
+      <Form.Description text="Temporary Formatting Options (for this execution only)" />
+
+      <Form.Checkbox
+        id="tempAddTimestamp"
+        label="Add timestamp"
+        value={formValues.tempAddTimestamp || false}
+        onChange={(value) => setFormValues((prev) => ({ ...prev, tempAddTimestamp: value }))}
+        info="Override your default timestamp setting for this entry"
+      />
+
+      {formValues.tempAddTimestamp && (
+        <Form.TextField
+          id="tempTimeFormat"
+          title="Time Format"
+          placeholder={preferences.timeFormat}
+          value={formValues.tempTimeFormat || ""}
+          onChange={(value) => setFormValues((prev) => ({ ...prev, tempTimeFormat: value }))}
+          info="Custom time format pattern (e.g., HH:mm:, h:mm A)"
+        />
+      )}
+
+      <Form.TextField
+        id="tempContentPrefix"
+        title="Content Prefix"
+        placeholder={preferences.contentPrefix || "Enter prefix text"}
+        value={formValues.tempContentPrefix || ""}
+        onChange={(value) => setFormValues((prev) => ({ ...prev, tempContentPrefix: value }))}
+        info="Text to add before your content (overrides preference)"
+      />
+
+      <Form.TextField
+        id="tempContentSuffix"
+        title="Content Suffix"
+        placeholder={preferences.contentSuffix || "Enter suffix text"}
+        value={formValues.tempContentSuffix || ""}
+        onChange={(value) => setFormValues((prev) => ({ ...prev, tempContentSuffix: value }))}
+        info="Text to add after your content (overrides preference)"
+      />
     </Form>
   );
 }

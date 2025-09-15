@@ -67,25 +67,31 @@ export default function ManageSpaces() {
   useEffect(() => {
     const checkFirstTime = async () => {
       const hasSeenTutorial = await LocalStorage.getItem("hasSeenSpaceIdTutorial");
-      if (!hasSeenTutorial) {
+      if (!hasSeenTutorial && !configLoading) {
         setShowTutorial(true);
         await LocalStorage.setItem("hasSeenSpaceIdTutorial", "true");
       }
     };
     checkFirstTime();
-  }, []);
+  }, [configLoading]);
 
   const showSpaceIdTutorial = () => {
     push(<SpaceIdTutorial />);
   };
 
-  // Show tutorial on first visit
+  // Show tutorial on first visit - improved timing and messaging
   useEffect(() => {
-    if (showTutorial && config && config.spaces.length > 0) {
-      showSpaceIdTutorial();
+    if (showTutorial && !configLoading) {
+      if (config && config.spaces.length > 0) {
+        // Show tutorial immediately when spaces are found
+        showSpaceIdTutorial();
+      } else {
+        // Show tutorial even if no spaces found, to help with setup
+        showSpaceIdTutorial();
+      }
       setShowTutorial(false);
     }
-  }, [showTutorial, config]);
+  }, [showTutorial, config, configLoading]);
 
   const handleRename = (spaceID: string, newName: string | null) => {
     if (config) {
@@ -144,7 +150,7 @@ export default function ManageSpaces() {
       >
         <List.EmptyView
           title="Craft not found"
-          description="Make sure Craft is installed and configured properly"
+          description="Make sure Craft is installed and running. Press ⌘+T to see the setup tutorial."
           icon="command-icon-small.png"
         />
       </List>
@@ -157,7 +163,7 @@ export default function ManageSpaces() {
         actions={
           <ActionPanel>
             <Action
-              title="Show Space ID Tutorial"
+              title="Show Setup Tutorial"
               icon={Icon.QuestionMark}
               onAction={showSpaceIdTutorial}
               shortcut={{ modifiers: ["cmd"], key: "t" }}
@@ -166,8 +172,8 @@ export default function ManageSpaces() {
         }
       >
         <List.EmptyView
-          title="No spaces found"
-          description="Try using Craft app first to initialize your spaces"
+          title="Welcome to Craft Spaces!"
+          description="Create some spaces in Craft app first, then return here to customize them. Press ⌘+T for setup guidance."
           icon="command-icon-small.png"
         />
       </List>
@@ -208,6 +214,21 @@ export default function ManageSpaces() {
                     title={space.isEnabled ? "Disable Space" : "Enable Space"}
                     icon={space.isEnabled ? Icon.EyeDisabled : Icon.Eye}
                     onAction={() => handleToggleEnabled(space.spaceID, space.isEnabled)}
+                  />
+                  <Action
+                    title={space.primary ? "Primary Space" : "Set as Primary Space"}
+                    icon={space.primary ? Icon.Star : Icon.StarDisabled}
+                    onAction={() => {
+                      if (config && !space.primary) {
+                        config.setPrimarySpace(space.spaceID);
+                        refreshConfig();
+                        showToast({
+                          title: "Primary space updated",
+                          message: `${config.getSpaceDisplayName(space.spaceID)} is now your primary space`,
+                          style: Toast.Style.Success,
+                        });
+                      }
+                    }}
                   />
                   <Action.CopyToClipboard
                     title="Copy Space ID"

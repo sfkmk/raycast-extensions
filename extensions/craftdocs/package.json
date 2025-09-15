@@ -30,7 +30,7 @@
       "name": "search",
       "title": "Blocks Search",
       "subtitle": "Craft",
-      "description": "Search documents in Craft",
+      "description": "Search documents and blocks across all Craft spaces",
       "mode": "view",
       "preferences": [
         {
@@ -40,7 +40,7 @@
           "required": false,
           "default": false,
           "label": "Use detailed view",
-          "description": "Changes the view of the search to show info about documents. It is messy!"
+          "description": "Show detailed document information in search results"
         },
         {
           "title": "Enable Navigation Entries",
@@ -49,7 +49,7 @@
           "required": false,
           "default": true,
           "label": "Show Craft navigation entries",
-          "description": "Include Craft's navigation entries (Starred Documents, All Tags, etc.) in search results"
+          "description": "Show Craft navigation entries (Starred, Tags, etc.) in search results"
         }
       ]
     },
@@ -57,14 +57,14 @@
       "name": "dailyNotes",
       "title": "Daily Notes",
       "subtitle": "Craft",
-      "description": "Navigate to your daily notes",
+      "description": "Browse, search, and navigate daily notes",
       "mode": "view"
     },
     {
       "name": "addToDailyNote",
       "title": "Add to Daily Note",
       "subtitle": "Craft",
-      "description": "Add content to your daily note",
+      "description": "Quickly add content to today's daily note",
       "mode": "view",
       "preferences": [
         {
@@ -101,7 +101,7 @@
           "required": false,
           "default": "HH:mm",
           "placeholder": "HH:mm",
-          "description": "Custom time format pattern. Examples: HH:mm (14:30), h:mm A (2:30 PM), HH:mm:ss (14:30:45). Patterns: H/HH=24h, h/hh=12h, mm=minutes, ss=seconds, A/a=AM/PM"
+          "info": "Time format pattern (e.g., HH:mm:, h:mm A, HH:mm:ss)"
         },
         {
           "title": "Prefix",
@@ -110,7 +110,7 @@
           "required": false,
           "default": ": ",
           "placeholder": "Enter prefix text",
-          "description": "Text to add after timestamp (if enabled) and before your content"
+          "info": "Text added before your content"
         },
         {
           "title": "Suffix",
@@ -119,7 +119,7 @@
           "required": false,
           "default": "",
           "placeholder": "Enter suffix text",
-          "description": "Text to add after your content"
+          "info": "Text added after your content"
         }
       ]
     },
@@ -127,13 +127,13 @@
       "name": "manageSpaces",
       "title": "Manage Spaces",
       "subtitle": "Craft",
-      "description": "Manage your Craft spaces: rename, enable/disable",
+      "description": "Rename, enable/disable, and configure Craft spaces",
       "mode": "view"
     },
     {
       "name": "open-daily-note",
       "title": "Open Daily Note",
-      "description": "Open today's Daily Note of your primary space in Craft. Use 'Manage Spaces' command to change which space is primary.",
+      "description": "Open today's daily note in your primary space",
       "mode": "no-view"
     }
   ],
