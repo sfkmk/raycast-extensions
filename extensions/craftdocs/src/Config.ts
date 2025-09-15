@@ -6,7 +6,7 @@ import { BUNDLE_IDS } from "./constants";
 import { ensureCraftPath, ensureSafeRegex } from "./utils/safety";
 
 const [craftDataRoot] = BUNDLE_IDS.map((id) =>
-  path.join(homedir(), `/Library/Containers/${id}/Data/Library/Application Support/${id}`),
+  path.join(homedir(), `/Library/Containers/${id}/Data/Library/Application Support/${id}`)
 ).filter(existsSync);
 const searchPath = ensureCraftPath(craftDataRoot, "Search");
 const SPACES_CONFIG_FILE = ensureCraftPath(craftDataRoot, "raycast-spaces-config.json");

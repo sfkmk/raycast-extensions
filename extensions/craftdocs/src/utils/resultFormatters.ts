@@ -21,7 +21,7 @@ export function formatResultTitle(
   dateDisplayFormat: string,
   hideCurrentYear: boolean,
   enableCustomEntries: boolean,
-  _parsedDate?: Date,
+  _parsedDate?: Date
 ): string {
   if ("isCustomEntry" in item) {
     // Custom entries already have their title set correctly
@@ -56,7 +56,7 @@ export function formatResultTitle(
 export function formatResultSubtitle(
   item: ExtendedBlock,
   dateDisplayFormat: string,
-  hideCurrentYear: boolean,
+  hideCurrentYear: boolean
 ): string | undefined {
   if ("isCustomEntry" in item) {
     // Custom entries don't have subtitles
@@ -130,7 +130,7 @@ export function getResultEmoji(item: ExtendedBlock, enableCustomEntries: boolean
           content: block.documentName,
           documentName: block.documentName,
         },
-        parsedDate,
+        parsedDate
       )
     ) {
       return "📝";
@@ -158,7 +158,7 @@ export function formatSearchResult(
   dateDisplayFormat: string,
   hideCurrentYear: boolean,
   enableCustomEntries: boolean,
-  parsedDate?: Date,
+  parsedDate?: Date
 ): FormattedResult {
   const title = formatResultTitle(item, dateDisplayFormat, hideCurrentYear, enableCustomEntries, parsedDate);
   const subtitle = formatResultSubtitle(item, dateDisplayFormat, hideCurrentYear);

@@ -55,7 +55,7 @@ export default function AddToDailyNote() {
   const getDailyNoteBlockId = (): string | null => {
     if (!results) return null;
     const dailyNotes = results.filter(
-      (block) => block.entityType === "document" && block.spaceID === formValues.spaceId,
+      (block) => block.entityType === "document" && block.spaceID === formValues.spaceId
     );
     if (dailyNotes.length > 0) {
       return dailyNotes[0].id;

@@ -66,7 +66,7 @@ export const backfillBlocksWithDocumentNames = (database: Database, blocks: Bloc
       .map(([documentID, content]) =>
         blocks
           .filter((block) => block.documentID === documentID)
-          .forEach((block) => (block.documentName = content as string)),
+          .forEach((block) => (block.documentName = content as string))
       );
 
     return blocks;
@@ -148,4 +148,4 @@ const phrasesForFTS5 = (terms: string[]): string[] => {
 const sqlValueArr2Block =
   (spaceID: string) =>
   ([id, content, type, entityType, documentID]: SqlValue[]): Block =>
-    ({ id, content, type, entityType, documentID, spaceID }) as Block;
+    ({ id, content, type, entityType, documentID, spaceID } as Block);

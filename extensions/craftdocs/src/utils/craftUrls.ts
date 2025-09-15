@@ -23,7 +23,7 @@ export function createDocumentUrl(spaceID: string, title: string, content: strin
   }
 
   return `craftdocs://createdocument?spaceId=${spaceID}&title=${encodeURIComponent(title)}&content=${encodeURIComponent(
-    content,
+    content
   )}&folderId=${folderId}`;
 }
 
@@ -87,6 +87,6 @@ export function createBlockInParentUrl(parentBlockId: string, spaceId: string, c
   }
 
   return `craftdocs://createblock?parentBlockId=${parentBlockId}&spaceId=${spaceId}&content=${encodeURIComponent(
-    content,
+    content
   )}&index=${index}`;
 }

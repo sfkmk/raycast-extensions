@@ -376,7 +376,7 @@ export function isTaskInboxBlock(documentName: string | undefined): boolean {
  */
 export function isDailyNoteBlock(
   block: { entityType: string; documentName?: string; content: string },
-  parsedDate?: Date,
+  parsedDate?: Date
 ): boolean {
   if (block.entityType !== "document") {
     return false;

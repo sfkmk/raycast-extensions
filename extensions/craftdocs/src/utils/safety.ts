@@ -13,7 +13,7 @@ import path from "path";
  */
 export const ensureSafePath = (...segments: (string | undefined | null)[]): string => {
   const validSegments = segments.filter(
-    (segment): segment is string => segment !== undefined && segment !== null && segment.trim().length > 0,
+    (segment): segment is string => segment !== undefined && segment !== null && segment.trim().length > 0
   );
 
   return validSegments.length > 0 ? path.join(...validSegments) : "";
@@ -34,7 +34,7 @@ export const ensureSafePath = (...segments: (string | undefined | null)[]): stri
 export const ensureSafeTitle = (
   primary: string | undefined | null,
   fallbacks: (string | undefined | null)[] = [],
-  defaultTitle = "Untitled",
+  defaultTitle = "Untitled"
 ): string => {
   // Try primary first
   if (primary && primary.trim().length > 0) {
@@ -67,7 +67,7 @@ export const isValidApplication = (app: unknown): app is { name: string; bundleI
       (app as { name: string }).name.trim().length > 0 &&
       "bundleId" in app &&
       typeof (app as { bundleId: string }).bundleId === "string" &&
-      (app as { bundleId: string }).bundleId.trim().length > 0,
+      (app as { bundleId: string }).bundleId.trim().length > 0
   );
 };
 
@@ -141,6 +141,6 @@ export const isValidSpaceOption = (space: unknown): space is { id: string; title
       (space as { id: string }).id.trim().length > 0 &&
       "title" in space &&
       typeof (space as { title: string }).title === "string" &&
-      (space as { title: string }).title.trim().length > 0,
+      (space as { title: string }).title.trim().length > 0
   );
 };
