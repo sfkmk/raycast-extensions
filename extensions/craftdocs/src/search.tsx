@@ -6,9 +6,10 @@ import useConfig, { UseConfig } from "./hooks/useConfig";
 import useDB, { UseDB } from "./hooks/useDB";
 import { CACHE_KEYS, APP_CONSTANTS } from "./constants";
 import { Action, ActionPanel, List, showToast, Toast, openExtensionPreferences, Cache } from "@raycast/api";
-import { getSearchPreferences } from "./preferences";
+import { getSearchPreferences, getDateFormatPreferences } from "./preferences";
 import useDocumentSearch from "./hooks/useDocumentSearch";
 import ListDocBlocks from "./components/ListDocBlocks";
+import { parseISODate, isISODatePattern } from "./utils/dateTimeFormatter";
 import Style = Toast.Style;
 
 const cache = new Cache();
@@ -37,7 +38,8 @@ function SpaceDropdown({ value, spaces, onSpaceChange }: SpaceDropdownProps) {
   );
 }
 
-const { useDetailedView } = getSearchPreferences();
+const { useDetailedView, enableCustomEntries } = getSearchPreferences();
+const { dateDisplayFormat, showCurrentYear } = getDateFormatPreferences();
 
 // noinspection JSUnusedGlobalSymbols
 export default function search() {
@@ -47,7 +49,7 @@ export default function search() {
 
   const [query, setQuery] = useState("");
   const [selectedSpace, setSelectedSpace] = useState<string>(
-    cache.get(CACHE_KEYS.SEARCH_SPACE_ID) || APP_CONSTANTS.DEFAULT_SPACE_FILTER
+    cache.get(CACHE_KEYS.SEARCH_SPACE_ID) || APP_CONSTANTS.DEFAULT_SPACE_FILTER,
   );
 
   const handleSpaceChange = (newValue: string) => {
@@ -100,6 +102,12 @@ const handleListView = ({ appExists, db, query, setQuery, config, selectedSpace,
   const spaces = config.config?.getAllSpacesForDropdown() || [];
   const showSpaceDropdown = spaces.length > 1;
 
+  // Parse date for potential daily note prioritization
+  const parsedDate =
+    isISODatePattern(query.trim()) || /^\d{1,2}\.?\s*[a-zA-ZäöüÄÖÜß]+\s*\d{0,4}$/.test(query.trim())
+      ? parseISODate(query.trim()) || undefined
+      : undefined;
+
   const listBlocks = (
     <ListBlocks
       isLoading={resultsLoading}
@@ -107,6 +115,10 @@ const handleListView = ({ appExists, db, query, setQuery, config, selectedSpace,
       blocks={filteredResults}
       query={query}
       config={config.config}
+      parsedDate={parsedDate}
+      dateDisplayFormat={dateDisplayFormat}
+      showCurrentYear={showCurrentYear}
+      enableCustomEntries={enableCustomEntries}
       searchBarAccessory={
         showSpaceDropdown ? (
           <SpaceDropdown spaces={spaces} onSpaceChange={handleSpaceChange} value={selectedSpace} />

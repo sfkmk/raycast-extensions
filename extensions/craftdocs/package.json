@@ -41,6 +41,15 @@
           "default": false,
           "label": "Use detailed view",
           "description": "Changes the view of the search to show info about documents. It is messy!"
+        },
+        {
+          "title": "Enable Navigation Entries",
+          "name": "enableCustomEntries",
+          "type": "checkbox",
+          "required": false,
+          "default": true,
+          "label": "Show Craft navigation entries",
+          "description": "Include Craft's navigation entries (Starred Documents, All Tags, etc.) in search results"
         }
       ]
     },
