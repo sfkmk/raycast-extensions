@@ -9,7 +9,7 @@ import { Action, ActionPanel, List, showToast, Toast, openExtensionPreferences, 
 import { getSearchPreferences, getDateFormatPreferences } from "./preferences";
 import useDocumentSearch from "./hooks/useDocumentSearch";
 import ListDocBlocks from "./components/ListDocBlocks";
-import { parseISODate, isISODatePattern } from "./utils/dateTimeFormatter";
+import { parseISODate, isISODatePattern, parseFlexibleDate } from "./utils/dateTimeFormatter";
 import Style = Toast.Style;
 
 const cache = new Cache();
@@ -102,11 +102,8 @@ const handleListView = ({ appExists, db, query, setQuery, config, selectedSpace,
   const spaces = config.config?.getAllSpacesForDropdown() || [];
   const showSpaceDropdown = spaces.length > 1;
 
-  // Parse date for potential daily note prioritization
-  const parsedDate =
-    isISODatePattern(query.trim()) || /^\d{1,2}\.?\s*[a-zA-ZäöüÄÖÜß]+\s*\d{0,4}$/.test(query.trim())
-      ? parseISODate(query.trim()) || undefined
-      : undefined;
+  // Parse date for potential daily note prioritization (supports natural language)
+  const parsedDate = parseFlexibleDate(query.trim()) || undefined;
 
   const listBlocks = (
     <ListBlocks

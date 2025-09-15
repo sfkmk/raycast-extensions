@@ -196,6 +196,187 @@ export function formatCraftInternalDate(date: Date): string {
   return `${year}.${month}.${day}`;
 }
 
+/**
+ * Parse natural language date strings to Date objects
+ * Supports common patterns like "today", "yesterday", "tomorrow", etc.
+ * Lightweight implementation without external dependencies
+ *
+ * @param input - The natural language date string
+ * @returns Date object or null if not parseable
+ */
+export function parseNaturalLanguageDate(input: string): Date | null {
+  if (!input || typeof input !== "string") {
+    return null;
+  }
+
+  const normalizedInput = input.toLowerCase().trim();
+  const now = new Date();
+
+  // Remove articles and prepositions
+  const cleanInput = normalizedInput.replace(/^(on|the|at|in)\s+/, "");
+
+  // Handle relative date patterns
+  switch (cleanInput) {
+    case "today":
+    case "now":
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    case "yesterday":
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+
+    case "tomorrow":
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    default:
+      break;
+  }
+
+  // Handle "X days ago" pattern
+  const daysAgoMatch = cleanInput.match(/^(\d+)\s+days?\s+ago$/);
+  if (daysAgoMatch) {
+    const days = parseInt(daysAgoMatch[1], 10);
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - days);
+  }
+
+  // Handle "in X days" pattern
+  const inDaysMatch = cleanInput.match(/^in\s+(\d+)\s+days?$/);
+  if (inDaysMatch) {
+    const days = parseInt(inDaysMatch[1], 10);
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
+  }
+
+  // Handle weekday names (finds next occurrence)
+  const weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+  const weekdayIndex = weekdays.indexOf(cleanInput);
+  if (weekdayIndex !== -1) {
+    const today = now.getDay();
+    let daysAhead = weekdayIndex - today;
+
+    // If the weekday is today or has passed this week, get next week's
+    if (daysAhead <= 0) {
+      daysAhead += 7;
+    }
+
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysAhead);
+  }
+
+  // Handle "next [weekday]" pattern
+  const nextWeekdayMatch = cleanInput.match(/^next\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/);
+  if (nextWeekdayMatch) {
+    const weekdayIndex = weekdays.indexOf(nextWeekdayMatch[1]);
+    const today = now.getDay();
+    let daysAhead = weekdayIndex - today + 7; // Always next week
+
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysAhead);
+  }
+
+  // Handle "last [weekday]" pattern
+  const lastWeekdayMatch = cleanInput.match(/^last\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/);
+  if (lastWeekdayMatch) {
+    const weekdayIndex = weekdays.indexOf(lastWeekdayMatch[1]);
+    const today = now.getDay();
+    let daysBehind = today - weekdayIndex;
+
+    // If the weekday hasn't occurred this week, get last week's
+    if (daysBehind <= 0) {
+      daysBehind += 7;
+    }
+
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysBehind);
+  }
+
+  // Handle simple date formats (dd.mm, dd/mm, mm/dd)
+  const simpleDateMatch = cleanInput.match(/^(\d{1,2})[\.\/](\d{1,2})$/);
+  if (simpleDateMatch) {
+    const first = parseInt(simpleDateMatch[1], 10);
+    const second = parseInt(simpleDateMatch[2], 10);
+
+    // Assume dd.mm format (European style) to match Craft's format
+    if (first <= 31 && second <= 12) {
+      const date = new Date(now.getFullYear(), second - 1, first);
+
+      // If the date has already passed this year, assume next year
+      if (date < now) {
+        date.setFullYear(now.getFullYear() + 1);
+      }
+
+      return date;
+    }
+  }
+
+  // Handle month names with day (e.g., "January 15", "15 January")
+  const months = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+  ];
+
+  const monthShort = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+  // Match "Month Day" or "Day Month" patterns
+  const monthDayMatch = cleanInput.match(
+    /^(?:(\d{1,2})\s+)?(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec))(?:\s+(\d{1,2}))?$/,
+  );
+
+  if (monthDayMatch) {
+    const dayBefore = monthDayMatch[1] ? parseInt(monthDayMatch[1], 10) : null;
+    const monthName = monthDayMatch[2];
+    const dayAfter = monthDayMatch[3] ? parseInt(monthDayMatch[3], 10) : null;
+
+    const day = dayBefore || dayAfter || 1;
+    let monthIndex = months.indexOf(monthName);
+
+    if (monthIndex === -1) {
+      monthIndex = monthShort.indexOf(monthName);
+    }
+
+    if (monthIndex !== -1 && day >= 1 && day <= 31) {
+      const date = new Date(now.getFullYear(), monthIndex, day);
+
+      // If the date has already passed this year, assume next year
+      if (date < now) {
+        date.setFullYear(now.getFullYear() + 1);
+      }
+
+      return date;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Enhanced date parser that tries multiple parsing strategies
+ * First attempts ISO format, then natural language
+ *
+ * @param input - The date string to parse
+ * @returns Date object or null if not parseable
+ */
+export function parseFlexibleDate(input: string): Date | null {
+  if (!input || typeof input !== "string") {
+    return null;
+  }
+
+  // First try ISO date parsing
+  const isoDate = parseISODate(input);
+  if (isoDate) {
+    return isoDate;
+  }
+
+  // Then try natural language parsing
+  return parseNaturalLanguageDate(input);
+}
+
 // Time format examples for user reference
 export const TIME_FORMAT_EXAMPLES = {
   "HH:mm": "14:30",
@@ -213,4 +394,19 @@ export const DATE_FORMAT_EXAMPLES = {
   "MMMM d, yyyy": "July 31, 2025",
   "EEE, MMM d": "Thu, Jul 31",
   "yyyy-MM-dd": "2025-07-31",
+} as const;
+
+// Natural language date parsing examples
+export const NATURAL_DATE_EXAMPLES = {
+  today: "Today's date",
+  tomorrow: "Tomorrow's date",
+  yesterday: "Yesterday's date",
+  monday: "Next Monday",
+  "next friday": "Friday of next week",
+  "last tuesday": "Tuesday of last week",
+  "3 days ago": "Three days in the past",
+  "in 5 days": "Five days in the future",
+  "15.03": "March 15th (current or next year)",
+  "january 20": "January 20th (current or next year)",
+  "20 december": "December 20th (current or next year)",
 } as const;

@@ -72,7 +72,7 @@ const consolidateDuplicates = (blocks: Block[]): Block[] => {
 
   return result;
 };
-import { parseISODate, isISODatePattern } from "../utils/dateTimeFormatter";
+import { parseISODate, isISODatePattern, parseFlexibleDate } from "../utils/dateTimeFormatter";
 
 export type Block = {
   id: string;
@@ -132,18 +132,15 @@ export default function useSearch({ databasesLoading, databases }: UseDB, text: 
     // Consolidate duplicates (e.g., Task Inbox when Task Logbook exists)
     results = consolidateDuplicates(results);
 
-    // Check if query looks like a date and prioritize daily notes
-    const isDateQuery = isISODatePattern(text.trim()) || /^\d{1,2}\.?\s*[a-zA-ZäöüÄÖÜß]+\s*\d{0,4}$/.test(text.trim());
-    if (isDateQuery) {
-      const parsedDate = parseISODate(text.trim());
-      if (parsedDate) {
-        results = prioritizeDailyNotes(results, parsedDate);
-      }
+    // Check if query can be parsed as a date and prioritize daily notes
+    const parsedDate = parseFlexibleDate(text.trim());
+    if (parsedDate) {
+      results = prioritizeDailyNotes(results, parsedDate);
     }
 
     setState({ results, resultsLoading: false });
     console.debug(
-      `got ${results.length} results for query search '${text}'${isTaskQuery ? " (task expanded)" : ""}${isDateQuery ? " (date prioritized)" : ""}`,
+      `got ${results.length} results for query search '${text}'${isTaskQuery ? " (task expanded)" : ""}${parsedDate ? " (date prioritized)" : ""}`,
     );
   }, [databasesLoading, text]);
 
