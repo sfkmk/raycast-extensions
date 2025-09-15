@@ -47,7 +47,7 @@ export default function search() {
 
   const [query, setQuery] = useState("");
   const [selectedSpace, setSelectedSpace] = useState<string>(
-    cache.get(CACHE_KEYS.SEARCH_SPACE_ID) || APP_CONSTANTS.DEFAULT_SPACE_FILTER,
+    cache.get(CACHE_KEYS.SEARCH_SPACE_ID) || APP_CONSTANTS.DEFAULT_SPACE_FILTER
   );
 
   const handleSpaceChange = (newValue: string) => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getApplications } from "@raycast/api";
 import { bundleIds, getPreferences } from "../preferences";
+import { isValidApplication } from "../utils/safety";
 
 export type UseAppExists = {
   appExistsLoading: boolean;
@@ -12,16 +13,28 @@ export default function useAppExists() {
 
   useEffect(() => {
     const check = async () => {
-      const apps = await getApplications();
-      const preferredApp = getPreferences().application;
-      const found = apps.find((app) => app.bundleId && bundleIds.includes(app.bundleId as (typeof bundleIds)[number]));
-      const app = preferredApp || found;
+      try {
+        const apps = await getApplications();
 
-      if (!app) {
-        return setState({ appExistsLoading: false, appExists: false });
+        // Filter out malformed applications that might cause List.Item errors
+        const validApps = apps.filter(isValidApplication);
+
+        const preferredApp = getPreferences().application;
+        const found = validApps.find(
+          (app) => app.bundleId && bundleIds.includes(app.bundleId as (typeof bundleIds)[number])
+        );
+        const app = preferredApp || found;
+
+        if (!app) {
+          return setState({ appExistsLoading: false, appExists: false });
+        }
+
+        setState({ appExistsLoading: false, appExists: true });
+      } catch (error) {
+        // Handle any errors during app detection
+        console.error("[App] Failed to check app existence:", error);
+        setState({ appExistsLoading: false, appExists: false });
       }
-
-      setState({ appExistsLoading: false, appExists: true });
     };
 
     check();

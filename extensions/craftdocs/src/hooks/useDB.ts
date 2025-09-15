@@ -30,7 +30,7 @@ export default function useDB({ config, configLoading }: UseConfig) {
         setState({
           databases: wraps.map((wrap) => ({ database: wrap.db, spaceID: wrap.space.spaceID })),
           databasesLoading: false,
-        }),
+        })
       )
       .then(() => console.debug("initialized databases " + config.spaces.map((space) => space.spaceID).join(", ")));
   }, [configLoading]);
