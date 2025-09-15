@@ -83,8 +83,11 @@ const BlockItem = ({
   return (
     <List.Item
       icon={block.entityType === "document" ? Icon.Document : Icon.Text}
-      subtitle={block.content}
-      title={ensureSafeTitle(block.documentName || block.content, [block.content, `Document ${block.id}`])}
+      subtitle={block.entityType === "document" ? undefined : block.documentName}
+      title={ensureSafeTitle(block.entityType === "document" ? block.documentName || block.content : block.content, [
+        block.content,
+        `Document ${block.id}`,
+      ])}
       accessories={
         showSpaceInfo
           ? [
