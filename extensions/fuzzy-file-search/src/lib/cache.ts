@@ -6,14 +6,14 @@ import path from "path";
 import sanitizeFilename from "sanitize-filename";
 import type { IndexMetadata, SearchResult } from "./types";
 
-export const indexVersion = 3;
+export const indexVersion = 4;
 export const indexFieldSeparator = "\u001f";
 
 const indexDirectory = path.join(environment.supportPath, "indexes");
 const staleTempFileAgeMs = 10 * 60 * 1000;
 
 type IndexKeyOptions = {
-  searchRoot: string;
+  searchRoots: string[];
   followSymlinks: boolean;
 };
 
@@ -28,19 +28,22 @@ export async function ensureIndexDirectory() {
   return indexDirectory;
 }
 
-export function buildIndexPaths({ searchRoot, followSymlinks }: IndexKeyOptions): IndexPaths {
+export function buildIndexPaths({ searchRoots, followSymlinks }: IndexKeyOptions): IndexPaths {
   const key = createHash("sha1")
     .update(
       JSON.stringify({
         version: indexVersion,
-        searchRoot,
+        searchRoots,
         followSymlinks,
       }),
     )
     .digest("hex")
     .slice(0, 16);
 
-  const label = sanitizeFilename(searchRoot).slice(0, 40) || "root";
+  const primaryRoot = searchRoots[0] ?? "root";
+  const primaryLabel =
+    primaryRoot === "/" ? "root" : sanitizeFilename(path.basename(primaryRoot) || primaryRoot).slice(0, 28) || "root";
+  const label = searchRoots.length > 1 ? `${primaryLabel}-${searchRoots.length}roots` : primaryLabel;
   const prefix = `fd-index-v${indexVersion}-${label}-${key}`;
 
   return {
@@ -65,11 +68,11 @@ export function isHiddenPath(filePath: string) {
 }
 
 export function encodeIndexRecord(entry: SearchResult) {
-  return `${entry.name}${indexFieldSeparator}${entry.path}${indexFieldSeparator}${entry.isDirectory ? "d" : "f"}${indexFieldSeparator}${entry.isHidden ? "1" : "0"}\0`;
+  return `${entry.name}${indexFieldSeparator}${entry.path}${indexFieldSeparator}${entry.isDirectory ? "d" : "f"}${indexFieldSeparator}${entry.isHidden ? "1" : "0"}${indexFieldSeparator}${entry.isSymbolicLink ? "1" : "0"}\0`;
 }
 
 export function parseIndexRecord(record: string): SearchResult | null {
-  const [name, filePath, type, hidden] = record.split(indexFieldSeparator, 4);
+  const [name, filePath, type, hidden, symbolicLink] = record.split(indexFieldSeparator, 5);
 
   if (!name || !filePath || !type) {
     return null;
@@ -80,6 +83,7 @@ export function parseIndexRecord(record: string): SearchResult | null {
     name,
     isDirectory: type === "d",
     isHidden: hidden === "1",
+    isSymbolicLink: symbolicLink === "1",
   };
 }
 
@@ -95,7 +99,8 @@ export async function readIndexMetadata(metadataPath: string) {
     if (
       typeof metadata.entryCount !== "number" ||
       typeof metadata.builtAt !== "string" ||
-      typeof metadata.searchRoot !== "string" ||
+      !Array.isArray(metadata.searchRoots) ||
+      metadata.searchRoots.some((root) => typeof root !== "string") ||
       typeof metadata.followSymlinks !== "boolean"
     ) {
       return null;

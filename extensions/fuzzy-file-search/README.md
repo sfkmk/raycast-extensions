@@ -16,7 +16,9 @@ Raycast command that lets you fuzzy-find files by filename or full path. By defa
 - On first run the extension downloads portable copies of `fd` and `fzf` to the Raycast support directory.
 - The extension reuses the last local index immediately, then refreshes it in the background so search stays available while results catch up.
 - Directories, hidden files, and filename-vs-path matching are filtered at query time, so those preference changes apply instantly without waiting for a rebuild.
+- Search roots live in the `Manage Search Roots` command, where you can create named scopes from one or more folders and reuse them from the search dropdown.
 - Filtering is delegated to `fzf`. By default, it matches against filenames only; enable "Match Full Path" in preferences to match anywhere in the full path.
+- Search results show paths relative to the active scope, keeping the list compact while still showing where each result lives.
 
 ## Configure the Search
 
@@ -27,7 +29,13 @@ Open the Raycast extension preferences to tailor the results:
 - `Follow Symbolic Links`: descend into symlinked directories.
 - `Match Full Path`: when disabled (default), searches match only against file and folder names. Enable it to search anywhere in the full path.
 - `Ignore Spaces in Search`: strip spaces from the query so `src foo bar` behaves like `srcfoobar`.
-- `Custom Search Directories`: space-separated list of extra roots. Use the search bar dropdown inside the command to switch between `Home (~)`, `Everything (/)`, or your custom set.
+
+## Manage Search Roots
+
+- Use the `Manage Search Roots` command to create named search scopes like `Work`, `Projects`, or `Client Files`.
+- Each scope can contain one or more folders selected from a directory picker, so paths with spaces work naturally.
+- You can give each folder inside a scope its own label and badge color, which show up in search results for multi-root scopes.
+- The manager also shows lightweight index insights such as entry count and last indexed time for each scope.
 
 ## Ignore Rules and `.fdignore`
 

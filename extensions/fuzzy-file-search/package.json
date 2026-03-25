@@ -54,15 +54,6 @@
           "required": false
         },
         {
-          "name": "customSearchDirs",
-          "title": "Custom Search Directories",
-          "type": "textfield",
-          "description": "The list of directories to start in. The search will run in all of those directories. Separate each directory with a whitespace ' '",
-          "placeholder": "/Applications/ /sbin/",
-          "default": "/Applications/ /sbin/",
-          "required": false
-        },
-        {
           "name": "matchFullPath",
           "title": "Match Full Path",
           "label": "Match against full file path",
@@ -70,8 +61,24 @@
           "type": "checkbox",
           "default": false,
           "required": false
+        },
+        {
+          "name": "showResultTypeBreakdown",
+          "title": "Show Result Type Breakdown",
+          "label": "Show file type counts in results section",
+          "description": "When enabled, shows the count of files, folders, and symlinks in the results section subtitle.",
+          "type": "checkbox",
+          "default": false,
+          "required": false
         }
       ]
+    },
+    {
+      "name": "manage-search-scopes",
+      "title": "Manage Search Scopes",
+      "description": "Create named search scopes from folders and review their index status.",
+      "mode": "view",
+      "preferences": []
     }
   ],
   "dependencies": {

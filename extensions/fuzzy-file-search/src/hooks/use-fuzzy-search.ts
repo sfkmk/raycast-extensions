@@ -159,7 +159,8 @@ async function runFuzzySearch({ fzfPath, indexPath, searchText, prefs, signal }:
         return;
       }
 
-      if (!fs.existsSync(parsed.path)) {
+      const hydratedResult = hydrateSearchResult(parsed);
+      if (!hydratedResult) {
         return;
       }
 
@@ -172,7 +173,7 @@ async function runFuzzySearch({ fzfPath, indexPath, searchText, prefs, signal }:
         return;
       }
 
-      filteredResults.push(parsed);
+      filteredResults.push(hydratedResult);
     });
 
     rl.on("close", resolve);
@@ -221,6 +222,36 @@ async function runFuzzySearch({ fzfPath, indexPath, searchText, prefs, signal }:
   }
 
   return filteredResults;
+}
+
+function hydrateSearchResult(result: SearchResult) {
+  try {
+    const stats = fs.lstatSync(result.path);
+
+    if (!stats.isSymbolicLink()) {
+      return {
+        ...result,
+        isDirectory: stats.isDirectory(),
+        isSymbolicLink: false,
+      } satisfies SearchResult;
+    }
+
+    try {
+      return {
+        ...result,
+        isDirectory: fs.statSync(result.path).isDirectory(),
+        isSymbolicLink: true,
+      } satisfies SearchResult;
+    } catch {
+      return {
+        ...result,
+        isDirectory: false,
+        isSymbolicLink: true,
+      } satisfies SearchResult;
+    }
+  } catch {
+    return null;
+  }
 }
 
 function shouldIncludeRecord(record: string, prefs: Prefs) {
