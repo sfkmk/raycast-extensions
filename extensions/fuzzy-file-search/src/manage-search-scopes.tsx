@@ -577,10 +577,10 @@ function SearchScopeEditor({
             if (!statusInfo.isAvailable) {
               const tooltip =
                 statusInfo.status === "stale"
-                  ? "Unavailable - using an older saved index"
+                  ? "Offline - using an older saved index"
                   : statusInfo.status === "offline"
-                    ? "Unavailable - searchable from saved results"
-                    : "Unavailable - connect storage to search";
+                    ? "Offline - searchable from saved results"
+                    : "Offline - connect storage to search";
               accessories.push({
                 icon: { source: Icon.CircleDisabled, tintColor: Color.Red },
                 tooltip,
@@ -714,8 +714,8 @@ function buildScopeAccessories(
     if (summary.unreachable > 0) {
       accessories.push({
         icon: { source: Icon.CircleDisabled, tintColor: Color.Red },
-        text: `${summary.unreachable} unavailable`,
-        tooltip: `${summary.unreachable} location${summary.unreachable === 1 ? " is" : "s are"} not currently reachable`,
+        text: `${summary.unreachable} offline`,
+        tooltip: `${summary.unreachable} location${summary.unreachable === 1 ? " is" : "s are"} currently offline`,
       });
     }
   }

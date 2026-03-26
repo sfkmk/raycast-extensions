@@ -149,7 +149,7 @@ export function getStatusLabel(status: LocationStatus): string {
     case "stale":
       return "Stale";
     case "unavailable":
-      return "Unavailable";
+      return "Offline";
   }
 }
 
@@ -160,10 +160,10 @@ export function getStatusDescription(status: LocationStatus): string {
     case "notIndexed":
       return "This location is available, but it has not been indexed for the current settings yet.";
     case "offline":
-      return "This location is not available, but a recent cache exists.";
+      return "This location is offline, but a recent cache exists.";
     case "stale":
-      return "This location is not available. Results may be outdated.";
+      return "This location is offline. Results may be outdated.";
     case "unavailable":
-      return "This location is not available and has no cached data.";
+      return "This location is offline and has no cached data.";
   }
 }

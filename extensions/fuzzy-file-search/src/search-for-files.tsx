@@ -237,9 +237,9 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
     if (allLocationsUnavailable) {
       return {
         kind: "unavailable" as const,
-        icon: Icon.ExclamationMark,
-        title: "Locations not available",
-        description: "None of the locations in this scope are connected. Connect a location to search.",
+        icon: Icon.CircleDisabled,
+        title: "Locations offline",
+        description: "None of the locations in this scope are online. Connect a location to search.",
       };
     }
 
@@ -558,7 +558,7 @@ function SearchResultActionPanel({
 function showOfflineLocationToast(actionLabel: string) {
   return showToast({
     style: Toast.Style.Failure,
-    title: "Location not available",
+    title: "Location offline",
     message: `Connect the storage device to ${actionLabel}.`,
   });
 }
