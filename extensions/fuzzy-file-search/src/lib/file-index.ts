@@ -8,16 +8,19 @@ import { basename } from "path";
 import Stream from "stream";
 import { pipeline } from "stream/promises";
 import {
-  buildIndexPaths,
+  buildLocationIndexPaths,
   cleanupStaleTempFiles,
+  composeLocationIndexes,
   encodeIndexRecord,
   ensureIndexDirectory,
-  indexVersion,
+  getLocationManifest,
   isHiddenPath,
   normalizeIndexedPath,
   readIndexMetadata,
   type IndexPaths,
   writeIndexMetadata,
+  writeLocationManifest,
+  indexVersion,
 } from "./cache";
 import type { IndexMetadata } from "./types";
 
@@ -27,24 +30,40 @@ export type ExistingIndexState = {
   revision?: string;
 };
 
-type RebuildFileIndexOptions = {
-  fdPath: string;
-  searchRoots: string[];
-  followSymlinks: boolean;
-  indexPaths: IndexPaths;
-  existingHash?: string;
-  signal?: AbortSignal;
+export type LocationIndexState = {
+  locationPath: string;
+  exists: boolean;
+  hash?: string;
 };
 
-type RebuildSearchScopeIndexOptions = {
+type RebuildLocationIndexOptions = {
   fdPath: string;
-  searchRoots: string[];
+  locationPath: string;
   followSymlinks: boolean;
+  excludePrefixes?: string[];
   signal?: AbortSignal;
 };
 
 export async function cleanupFileIndexTempFiles() {
   await cleanupStaleTempFiles();
+}
+
+export async function getExistingLocationIndexState(
+  locationPath: string,
+  followSymlinks: boolean,
+): Promise<LocationIndexState> {
+  const paths = buildLocationIndexPaths(locationPath, followSymlinks);
+  const manifest = await getLocationManifest(paths.metadataPath);
+
+  if (!manifest || !fs.existsSync(paths.dataPath)) {
+    return { locationPath, exists: false };
+  }
+
+  return {
+    locationPath,
+    exists: true,
+    hash: manifest.hash,
+  };
 }
 
 export async function getExistingFileIndexState(indexPaths: IndexPaths): Promise<ExistingIndexState> {
@@ -62,40 +81,64 @@ export async function getExistingFileIndexState(indexPaths: IndexPaths): Promise
   };
 }
 
-export async function rebuildSearchScopeIndex({
+export async function rebuildLocationIndexes({
   fdPath,
-  searchRoots,
+  locationPaths,
   followSymlinks,
+  excludePrefixesForRoot,
   signal,
-}: RebuildSearchScopeIndexOptions) {
-  const indexPaths = buildIndexPaths({ searchRoots, followSymlinks });
-  const existingIndex = await getExistingFileIndexState(indexPaths);
-  const result = await rebuildFileIndex({
-    fdPath,
-    searchRoots,
-    followSymlinks,
-    indexPaths,
-    existingHash: existingIndex.metadata?.hash,
-    signal,
-  });
+}: {
+  fdPath: string;
+  locationPaths: string[];
+  followSymlinks: boolean;
+  excludePrefixesForRoot?: string[];
+  signal?: AbortSignal;
+}) {
+  await ensureIndexDirectory();
 
-  return {
-    ...result,
-    existingIndex,
-    indexPaths,
-  };
+  const results: Array<{
+    locationPath: string;
+    paths: ReturnType<typeof buildLocationIndexPaths>;
+    hash: string;
+    changed: boolean;
+  }> = [];
+
+  for (const locationPath of locationPaths) {
+    const excludePrefixes = locationPath === "/" ? excludePrefixesForRoot : undefined;
+    const result = await rebuildLocationIndex({
+      fdPath,
+      locationPath,
+      followSymlinks,
+      excludePrefixes,
+      signal,
+    });
+    results.push(result);
+  }
+
+  return results;
 }
 
-export async function rebuildFileIndex({
+export async function rebuildLocationIndex({
   fdPath,
-  searchRoots,
+  locationPath,
   followSymlinks,
-  indexPaths,
-  existingHash,
+  excludePrefixes,
   signal,
-}: RebuildFileIndexOptions) {
+}: RebuildLocationIndexOptions): Promise<{
+  locationPath: string;
+  paths: ReturnType<typeof buildLocationIndexPaths>;
+  hash: string;
+  changed: boolean;
+}> {
   await ensureIndexDirectory();
   await ensureDefaultIgnoreFile();
+
+  const paths = buildLocationIndexPaths(locationPath, followSymlinks);
+  await afs.mkdir(paths.directoryPath, { recursive: true });
+
+  const sourceLocationId = paths.locationId;
+
+  const existingManifest = await getLocationManifest(paths.metadataPath);
 
   const fdArgs = ["--hidden"];
 
@@ -103,9 +146,9 @@ export async function rebuildFileIndex({
     fdArgs.push("--follow");
   }
 
-  fdArgs.push("--print0", ".", ...searchRoots);
+  fdArgs.push("--print0", ".", locationPath);
 
-  const tempOutputPath = `${indexPaths.dataPath}.${Date.now()}-${randomUUID()}.temp`;
+  const tempOutputPath = `${paths.dataPath}.${Date.now()}-${randomUUID()}.temp`;
   const writeStream = fs.createWriteStream(tempOutputPath, { flags: "wx" });
   const hash = createHash("sha1");
   let entryCount = 0;
@@ -124,11 +167,13 @@ export async function rebuildFileIndex({
           }
 
           const rawRecord = buffer.subarray(offset, nullIndex).toString("utf8");
-          const encodedRecord = createEncodedRecord(rawRecord);
-          if (encodedRecord) {
-            entryCount += 1;
-            hash.update(encodedRecord);
-            this.push(encodedRecord);
+          if (shouldIncludeRecord(rawRecord, excludePrefixes)) {
+            const encodedRecord = createEncodedRecord(rawRecord, sourceLocationId);
+            if (encodedRecord) {
+              entryCount += 1;
+              hash.update(encodedRecord);
+              this.push(encodedRecord);
+            }
           }
 
           offset = nullIndex + 1;
@@ -144,11 +189,13 @@ export async function rebuildFileIndex({
       try {
         if (buffer.length > 0) {
           const rawRecord = buffer.toString("utf8");
-          const encodedRecord = createEncodedRecord(rawRecord);
-          if (encodedRecord) {
-            entryCount += 1;
-            hash.update(encodedRecord);
-            this.push(encodedRecord);
+          if (shouldIncludeRecord(rawRecord, excludePrefixes)) {
+            const encodedRecord = createEncodedRecord(rawRecord, sourceLocationId);
+            if (encodedRecord) {
+              entryCount += 1;
+              hash.update(encodedRecord);
+              this.push(encodedRecord);
+            }
           }
         }
 
@@ -194,28 +241,48 @@ export async function rebuildFileIndex({
   }
 
   const nextHash = hash.digest("hex");
-  const metadata: IndexMetadata = {
+  const manifest = {
     version: indexVersion,
+    locationPath,
+    followSymlinks,
     hash: nextHash,
     entryCount,
     builtAt: new Date().toISOString(),
-    searchRoots,
-    followSymlinks,
   };
 
-  if (existingHash === nextHash && fs.existsSync(indexPaths.dataPath)) {
+  if (existingManifest?.hash === nextHash && fs.existsSync(paths.dataPath)) {
     await afs.rm(tempOutputPath, { force: true });
-    await writeIndexMetadata(indexPaths.metadataPath, metadata);
-    return { hash: nextHash, changed: false };
+    await writeLocationManifest(paths.metadataPath, manifest);
+    return { locationPath, paths, hash: nextHash, changed: false };
   }
 
-  await afs.rename(tempOutputPath, indexPaths.dataPath);
-  await writeIndexMetadata(indexPaths.metadataPath, metadata);
+  await afs.rename(tempOutputPath, paths.dataPath);
+  await writeLocationManifest(paths.metadataPath, manifest);
 
-  return { hash: nextHash, changed: true };
+  return { locationPath, paths, hash: nextHash, changed: true };
 }
 
-function createEncodedRecord(rawRecord: string) {
+function shouldIncludeRecord(rawRecord: string, excludePrefixes?: string[]): boolean {
+  if (!excludePrefixes || excludePrefixes.length === 0) {
+    return true;
+  }
+
+  const normalizedPath = normalizeIndexedPath(rawRecord);
+  if (!normalizedPath) {
+    return false;
+  }
+
+  for (const prefix of excludePrefixes) {
+    const normalizedPrefix = normalizeIndexedPath(prefix);
+    if (normalizedPath.startsWith(normalizedPrefix + "/") || normalizedPath === normalizedPrefix) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function createEncodedRecord(rawRecord: string, sourceLocationId: string) {
   const normalizedPath = normalizeIndexedPath(rawRecord);
   if (!normalizedPath) {
     return null;
@@ -229,6 +296,7 @@ function createEncodedRecord(rawRecord: string) {
     isDirectory: rawRecord.endsWith(path.sep),
     isHidden: isHiddenPath(normalizedPath),
     isSymbolicLink: false,
+    sourceLocationId,
   });
 }
 
@@ -255,3 +323,40 @@ async function ensureDefaultIgnoreFile() {
 
   await afs.writeFile(ignoreFile, ignorePaths.join("\n"));
 }
+
+export async function composeAndBuildIndex({
+  locationPaths,
+  followSymlinks,
+  composedIndexPaths,
+}: {
+  locationPaths: Array<ReturnType<typeof buildLocationIndexPaths>>;
+  followSymlinks: boolean;
+  composedIndexPaths: IndexPaths;
+}): Promise<{ hash: string; changed: boolean }> {
+  const manifests = await Promise.all(locationPaths.map((paths) => getLocationManifest(paths.metadataPath)));
+  const allHashes = manifests
+    .map((manifest, index) => `${locationPaths[index].locationId}:${manifest?.hash ?? "missing"}`)
+    .sort()
+    .join("-");
+  const hash = createHash("sha1").update(allHashes).digest("hex");
+
+  const metadata: IndexMetadata = {
+    version: indexVersion,
+    hash,
+    entryCount: 0,
+    builtAt: new Date().toISOString(),
+    searchRoots: locationPaths.map((paths, index) => manifests[index]?.locationPath ?? paths.locationId),
+    followSymlinks,
+  };
+
+  await ensureIndexDirectory();
+
+  const entryCount = await composeLocationIndexes(locationPaths, composedIndexPaths.dataPath);
+  metadata.entryCount = entryCount;
+
+  await writeIndexMetadata(composedIndexPaths.metadataPath, metadata);
+
+  return { hash, changed: true };
+}
+
+export { buildLocationIndexPaths };

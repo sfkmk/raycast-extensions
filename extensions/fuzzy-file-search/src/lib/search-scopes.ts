@@ -1,26 +1,35 @@
 import { Color, LocalStorage } from "@raycast/api";
-import { randomUUID } from "crypto";
-import fs from "fs";
+import { createHash, randomUUID } from "crypto";
 import afs from "fs/promises";
 import os from "os";
 import path from "path";
-import { buildIndexPaths, readIndexMetadata } from "./cache";
+import { buildLocationIndexPaths, getLocationManifest } from "./cache";
 import type {
   SavedSearchScope,
   SearchScope,
   SearchScopeId,
   SearchScopeIndexVariant,
   SearchScopeInsights,
-  SearchScopeRoot,
-  SearchScopeRootColor,
+  SearchScopeLocation,
+  SearchScopeLocationColor,
+  IndexMetadata,
 } from "./types";
 
-const savedSearchScopesKey = "saved-search-scopes-v1";
+const savedSearchScopesKeyV1 = "saved-search-scopes-v1";
+const savedSearchScopesKeyV2 = "saved-search-scopes-v2";
 const defaultSearchScopeKey = "default-search-scope-v1";
 
-const scopeRootColorPalette: SearchScopeRootColor[] = ["blue", "green", "orange", "magenta", "purple", "yellow", "red"];
+const scopeLocationColorPalette: SearchScopeLocationColor[] = [
+  "blue",
+  "green",
+  "orange",
+  "magenta",
+  "purple",
+  "yellow",
+  "red",
+];
 
-const scopeRootColorMap: Record<SearchScopeRootColor, Color.ColorLike> = {
+const scopeLocationColorMap: Record<SearchScopeLocationColor, Color.ColorLike> = {
   blue: Color.Blue,
   green: Color.Green,
   magenta: Color.Magenta,
@@ -30,7 +39,7 @@ const scopeRootColorMap: Record<SearchScopeRootColor, Color.ColorLike> = {
   yellow: Color.Yellow,
 };
 
-const scopeRootColorTitles: Record<SearchScopeRootColor, string> = {
+const scopeLocationColorTitles: Record<SearchScopeLocationColor, string> = {
   blue: "Blue",
   green: "Green",
   magenta: "Magenta",
@@ -59,13 +68,13 @@ export function getBuiltinSearchScopes(): SearchScope[] {
     {
       id: homeSearchScopeId,
       name: "Home",
-      roots: [createSearchScopeRoot(os.homedir(), { color: "blue", label: "Home" })],
+      locations: [createSearchScopeLocation(os.homedir(), { color: "blue", label: "Home" })],
       isBuiltin: true,
     },
     {
       id: everythingSearchScopeId,
       name: "Everything",
-      roots: [createSearchScopeRoot("/", { color: "orange", label: "/" })],
+      locations: [createSearchScopeLocation("/", { color: "orange", label: "/" })],
       isBuiltin: true,
     },
   ];
@@ -89,7 +98,7 @@ export function resolveSearchScope(
 }
 
 export async function saveSavedSearchScopes(scopes: SavedSearchScope[]) {
-  await LocalStorage.setItem(savedSearchScopesKey, JSON.stringify(scopes));
+  await LocalStorage.setItem(savedSearchScopesKeyV2, JSON.stringify(scopes));
 }
 
 export async function saveDefaultSearchScopeId(scopeId: SearchScopeId) {
@@ -98,17 +107,17 @@ export async function saveDefaultSearchScopeId(scopeId: SearchScopeId) {
 
 export async function createSavedSearchScope({
   name,
-  roots,
+  locations,
 }: {
   name: string;
-  roots: Array<string | SearchScopeRoot>;
+  locations: Array<string | SearchScopeLocation>;
 }) {
   const now = new Date().toISOString();
 
   return {
     id: `custom:${randomUUID()}`,
     name: name.trim(),
-    roots: normalizeScopeRoots(roots),
+    locations: normalizeScopeLocations(locations),
     isBuiltin: false as const,
     createdAt: now,
     updatedAt: now,
@@ -117,111 +126,111 @@ export async function createSavedSearchScope({
 
 export async function updateSavedSearchScope(
   scope: SavedSearchScope,
-  updates: { name: string; roots: Array<string | SearchScopeRoot> },
+  updates: { name: string; locations: Array<string | SearchScopeLocation> },
 ) {
   return {
     ...scope,
     name: updates.name.trim(),
-    roots: mergeScopeRoots(scope.roots, updates.roots),
+    locations: mergeScopeLocations(scope.locations, updates.locations),
     updatedAt: new Date().toISOString(),
   } satisfies SavedSearchScope;
 }
 
-export function normalizeScopeRoots(roots: Array<string | Partial<SearchScopeRoot> | SearchScopeRoot>) {
-  const normalizedRoots = new Map<string, SearchScopeRoot>();
+export function normalizeScopeLocations(locations: Array<string | Partial<SearchScopeLocation> | SearchScopeLocation>) {
+  const normalizedLocations = new Map<string, SearchScopeLocation>();
 
-  for (const root of roots) {
-    const normalizedRoot = normalizeScopeRoot(root);
-    if (!normalizedRoot) {
+  for (const location of locations) {
+    const normalizedLocation = normalizeScopeLocation(location);
+    if (!normalizedLocation) {
       continue;
     }
 
-    normalizedRoots.set(normalizedRoot.path, normalizedRoot);
+    normalizedLocations.set(normalizedLocation.path, normalizedLocation);
   }
 
-  return Array.from(normalizedRoots.values());
+  return Array.from(normalizedLocations.values());
 }
 
-export async function validateScopeRoots(roots: string[]) {
+export async function validateScopeLocations(locations: string[]) {
   const issues: string[] = [];
 
-  for (const root of roots) {
+  for (const location of locations) {
     try {
-      const stats = await afs.stat(root);
+      const stats = await afs.stat(location);
       if (!stats.isDirectory()) {
-        issues.push(`${formatPathForDisplay(root)} is not a directory`);
+        issues.push(`${formatPathForDisplay(location)} is not a directory`);
       }
     } catch {
-      issues.push(`${formatPathForDisplay(root)} does not exist`);
+      issues.push(`${formatPathForDisplay(location)} does not exist`);
     }
   }
 
   return issues;
 }
 
-export function getScopeRootPaths(scope: Pick<SearchScope, "roots">) {
-  return scope.roots.map((root) => root.path);
+export function getScopeLocationPaths(scope: Pick<SearchScope, "locations">) {
+  return scope.locations.map((location) => location.path);
 }
 
 export function formatPathForDisplay(filePath: string) {
   return filePath.startsWith(os.homedir()) ? filePath.replace(os.homedir(), "~") : filePath;
 }
 
-export function getBestMatchingRoot(filePath: string, roots: SearchScopeRoot[]) {
+export function getBestMatchingLocation(filePath: string, locations: SearchScopeLocation[]) {
   const normalizedPath = path.normalize(filePath);
 
-  return [...roots]
+  return [...locations]
     .sort((left, right) => right.path.length - left.path.length)
-    .find((root) => {
-      const normalizedRoot = path.normalize(root.path);
-      return normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}${path.sep}`);
+    .find((location) => {
+      const normalizedLocation = path.normalize(location.path);
+      return normalizedPath === normalizedLocation || normalizedPath.startsWith(`${normalizedLocation}${path.sep}`);
     });
 }
 
-export function formatRelativeParentPath(filePath: string, isDirectory: boolean, roots: SearchScopeRoot[]) {
-  const matchingRoot = getBestMatchingRoot(filePath, roots);
-  if (!matchingRoot) {
+export function formatRelativeParentPath(filePath: string, isDirectory: boolean, locations: SearchScopeLocation[]) {
+  const matchingLocation = getBestMatchingLocation(filePath, locations);
+  if (!matchingLocation) {
     return withTrailingSlash(formatPathForDisplay(path.dirname(filePath)));
   }
 
-  const isHomeRoot = matchingRoot.path === os.homedir();
-  const rootLabel = isHomeRoot ? "~" : "./";
+  const isHomeLocation = matchingLocation.path === os.homedir();
+  const locationLabel = isHomeLocation ? "~" : "./";
 
-  const relativePath = path.relative(matchingRoot.path, filePath);
+  const relativePath = path.relative(matchingLocation.path, filePath);
   if (!relativePath || relativePath === ".") {
-    return rootLabel;
+    return locationLabel;
   }
 
   const parentPath = isDirectory ? path.dirname(relativePath) : path.dirname(relativePath);
   if (!parentPath || parentPath === ".") {
-    return rootLabel;
+    return locationLabel;
   }
 
-  return withTrailingSlash(isHomeRoot ? `~/${parentPath}` : `./${parentPath}`);
+  return withTrailingSlash(isHomeLocation ? `~/${parentPath}` : `./${parentPath}`);
 }
 
-export function formatScopeRootPath(root: SearchScopeRoot) {
-  const formatted = formatPathForDisplay(root.path);
+export function formatScopeLocationPath(location: SearchScopeLocation) {
+  const formatted = formatPathForDisplay(location.path);
   if (formatted === "/" || formatted === "~") {
     return formatted;
   }
   return `${formatted}/`;
 }
 
-export function formatScopeRootsPreview(scope: Pick<SearchScope, "roots">) {
-  if (scope.roots.length === 0) {
+export function formatScopeLocationsPreview(scope: Pick<SearchScope, "locations">) {
+  if (scope.locations.length === 0) {
     return "No folders selected";
   }
 
-  if (scope.roots.length === 1) {
-    return formatScopeRootPreview(scope.roots[0]);
+  if (scope.locations.length === 1) {
+    return formatScopeLocationPreview(scope.locations[0]);
   }
 
-  return `${scope.roots[0].label} +${scope.roots.length - 1} more`;
+  return `${scope.locations[0].label} +${scope.locations.length - 1} more`;
 }
 
-export function formatScopeRootsMarkdown(scope: Pick<SearchScope, "roots">) {
-  return scope.roots.map((root) => `- ${root.label}: \`${formatScopeRootPath(root)}\``).join("\n");
+export function formatScopeLocationsMarkdown(scope: Pick<SearchScope, "locations">) {
+  return scope.locations.map((location) => `- ${location.label}: \`${formatScopeLocationPath(location)}\``).join("\n");
 }
 
 export function formatEntryCount(entryCount: number) {
@@ -265,7 +274,7 @@ export async function loadSearchScopeInsights(scope: SearchScope): Promise<Searc
 
 export function formatScopeInsightSummary(insights: SearchScopeInsights) {
   if (!insights.latest?.metadata) {
-    return "Not indexed yet";
+    return "Not indexed";
   }
 
   const latest = insights.latest.metadata;
@@ -273,34 +282,58 @@ export function formatScopeInsightSummary(insights: SearchScopeInsights) {
   return `${formatEntryCount(latest.entryCount)} items${suffix}`;
 }
 
-export function getScopeRootColorOptions() {
-  return scopeRootColorPalette.map((color) => ({
-    color: getScopeRootColorValue(color),
-    title: scopeRootColorTitles[color],
+export function getScopeLocationColorOptions() {
+  return scopeLocationColorPalette.map((color) => ({
+    color: getScopeLocationColorValue(color),
+    title: scopeLocationColorTitles[color],
     value: color,
   }));
 }
 
-export function getScopeRootColorValue(color: SearchScopeRootColor) {
-  return scopeRootColorMap[color];
+export function getScopeLocationColorValue(color: SearchScopeLocationColor) {
+  return scopeLocationColorMap[color];
 }
 
-async function loadSavedSearchScopes() {
-  const storedValue = await LocalStorage.getItem<string>(savedSearchScopesKey);
-  if (!storedValue) {
+async function loadSavedSearchScopes(): Promise<SavedSearchScope[]> {
+  const v2Value = await LocalStorage.getItem<string>(savedSearchScopesKeyV2);
+  if (v2Value) {
+    try {
+      const parsed = JSON.parse(v2Value) as unknown;
+      if (Array.isArray(parsed)) {
+        const scopes = parsed.filter(isSavedSearchScope).map((scope) => ({
+          ...scope,
+          locations: normalizeScopeLocations(scope.locations),
+        }));
+        return scopes;
+      }
+    } catch {
+      // Fall through to v1 migration
+    }
+  }
+
+  const v1Value = await LocalStorage.getItem<string>(savedSearchScopesKeyV1);
+  if (!v1Value) {
     return [];
   }
 
   try {
-    const parsed = JSON.parse(storedValue) as unknown;
+    const parsed = JSON.parse(v1Value) as unknown;
     if (!Array.isArray(parsed)) {
       return [];
     }
 
-    return parsed.filter(isSavedSearchScope).map((scope) => ({
-      ...scope,
-      roots: normalizeScopeRoots(scope.roots),
-    }));
+    const migrated = parsed
+      .filter(isLegacySavedSearchScope)
+      .map(migrateLegacySavedSearchScope)
+      .map((scope) => ({
+        ...scope,
+        locations: normalizeScopeLocations(scope.locations),
+      }));
+
+    await LocalStorage.setItem(savedSearchScopesKeyV2, JSON.stringify(migrated));
+    await LocalStorage.removeItem(savedSearchScopesKeyV1);
+
+    return migrated;
   } catch {
     return [];
   }
@@ -309,6 +342,64 @@ async function loadSavedSearchScopes() {
 async function loadDefaultSearchScopeId() {
   const storedValue = await LocalStorage.getItem<string>(defaultSearchScopeKey);
   return typeof storedValue === "string" ? storedValue : undefined;
+}
+
+function migrateLegacySavedSearchScope(scope: LegacySavedSearchScope): SavedSearchScope {
+  return {
+    id: scope.id,
+    name: scope.name,
+    locations: scope.roots.map((root) =>
+      createSearchScopeLocation(root.path, { color: root.color, label: root.label }),
+    ),
+    isBuiltin: false,
+    createdAt: scope.createdAt,
+    updatedAt: scope.updatedAt,
+  };
+}
+
+type LegacySearchScopeRoot = {
+  path: string;
+  label: string;
+  color: SearchScopeLocationColor;
+};
+
+type LegacySavedSearchScope = {
+  id: string;
+  name: string;
+  roots: LegacySearchScopeRoot[];
+  isBuiltin: false;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function isLegacySavedSearchScope(value: unknown): value is LegacySavedSearchScope {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const scope = value as Partial<LegacySavedSearchScope>;
+  return (
+    typeof scope.id === "string" &&
+    typeof scope.name === "string" &&
+    Array.isArray(scope.roots) &&
+    scope.roots.every((root) => isLegacyScopeRootInput(root)) &&
+    scope.isBuiltin === false &&
+    typeof scope.createdAt === "string" &&
+    typeof scope.updatedAt === "string"
+  );
+}
+
+function isLegacyScopeRootInput(value: unknown): value is LegacySearchScopeRoot {
+  if (typeof value === "string") {
+    return true;
+  }
+
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const root = value as Partial<LegacySearchScopeRoot>;
+  return typeof root.path === "string";
 }
 
 function isSavedSearchScope(value: unknown): value is SavedSearchScope {
@@ -320,15 +411,15 @@ function isSavedSearchScope(value: unknown): value is SavedSearchScope {
   return (
     typeof scope.id === "string" &&
     typeof scope.name === "string" &&
-    Array.isArray(scope.roots) &&
-    scope.roots.every((root) => isScopeRootInput(root)) &&
+    Array.isArray(scope.locations) &&
+    scope.locations.every((location) => isScopeLocationInput(location)) &&
     scope.isBuiltin === false &&
     typeof scope.createdAt === "string" &&
     typeof scope.updatedAt === "string"
   );
 }
 
-function isScopeRootInput(value: unknown): value is string | SearchScopeRoot {
+function isScopeLocationInput(value: unknown): value is string | SearchScopeLocation {
   if (typeof value === "string") {
     return true;
   }
@@ -337,59 +428,72 @@ function isScopeRootInput(value: unknown): value is string | SearchScopeRoot {
     return false;
   }
 
-  const root = value as Partial<SearchScopeRoot>;
-  return typeof root.path === "string";
+  const location = value as Partial<SearchScopeLocation>;
+  return typeof location.path === "string";
 }
 
-function normalizeScopeRoot(root: string | Partial<SearchScopeRoot> | SearchScopeRoot) {
-  if (typeof root === "string") {
-    return createSearchScopeRoot(root);
+function normalizeScopeLocation(location: string | Partial<SearchScopeLocation> | SearchScopeLocation) {
+  if (typeof location === "string") {
+    return createSearchScopeLocation(location);
   }
 
-  if (!root || typeof root.path !== "string") {
+  if (!location || typeof location.path !== "string") {
     return null;
   }
 
-  return createSearchScopeRoot(root.path, {
-    color: isSearchScopeRootColor(root.color) ? root.color : undefined,
-    label: typeof root.label === "string" ? root.label : undefined,
+  return createSearchScopeLocation(location.path, {
+    color: isSearchScopeLocationColor(location.color) ? location.color : undefined,
+    label: typeof location.label === "string" ? location.label : undefined,
   });
 }
 
-function mergeScopeRoots(existingRoots: SearchScopeRoot[], nextRoots: Array<string | SearchScopeRoot>) {
-  const existingRootsByPath = new Map(existingRoots.map((root) => [normalizeRootPath(root.path), root]));
+function mergeScopeLocations(
+  existingLocations: SearchScopeLocation[],
+  nextLocations: Array<string | SearchScopeLocation>,
+) {
+  const existingLocationsByPath = new Map(
+    existingLocations.map((location) => [normalizeLocationPath(location.path), location]),
+  );
 
-  return normalizeScopeRoots(
-    nextRoots.map((root) => {
-      if (typeof root === "string") {
-        const normalizedPath = normalizeRootPath(root);
-        return existingRootsByPath.get(normalizedPath) ?? root;
+  return normalizeScopeLocations(
+    nextLocations.map((location) => {
+      if (typeof location === "string") {
+        const normalizedPath = normalizeLocationPath(location);
+        return existingLocationsByPath.get(normalizedPath) ?? location;
       }
 
-      const normalizedPath = normalizeRootPath(root.path);
+      const normalizedPath = normalizeLocationPath(location.path);
       return {
-        ...(existingRootsByPath.get(normalizedPath) ?? {}),
-        ...root,
+        ...(existingLocationsByPath.get(normalizedPath) ?? {}),
+        ...location,
         path: normalizedPath,
-      } satisfies SearchScopeRoot;
+      } satisfies SearchScopeLocation;
     }),
   );
 }
 
-function createSearchScopeRoot(rootPath: string, overrides?: Partial<SearchScopeRoot>) {
-  const normalizedPath = normalizeRootPath(rootPath);
+function createSearchScopeLocation(
+  locationPath: string,
+  overrides?: Partial<SearchScopeLocation>,
+): SearchScopeLocation {
+  const normalizedPath = normalizeLocationPath(locationPath);
   return {
+    id: deriveLocationId(normalizedPath),
     path: normalizedPath,
-    label: overrides?.label?.trim() || getDefaultScopeRootLabel(normalizedPath),
+    label: overrides?.label?.trim() || getDefaultScopeLocationLabel(normalizedPath),
     color:
-      overrides?.color && isSearchScopeRootColor(overrides.color)
+      overrides?.color && isSearchScopeLocationColor(overrides.color)
         ? overrides.color
-        : getDefaultScopeRootColor(normalizedPath),
-  } satisfies SearchScopeRoot;
+        : getDefaultScopeLocationColor(normalizedPath),
+  } satisfies SearchScopeLocation;
 }
 
-function normalizeRootPath(rootPath: string) {
-  const trimmedPath = rootPath.trim();
+function deriveLocationId(normalizedPath: string): string {
+  return createHash("sha1").update(normalizedPath).digest("hex").slice(0, 12);
+}
+
+function normalizeLocationPath(locationPath: string) {
+  const trimmedPath = locationPath.trim();
   if (trimmedPath === "~") {
     return os.homedir();
   }
@@ -401,53 +505,85 @@ function normalizeRootPath(rootPath: string) {
   return path.normalize(trimmedPath);
 }
 
-function getDefaultScopeRootLabel(rootPath: string) {
-  if (rootPath === "/") {
+function getDefaultScopeLocationLabel(locationPath: string) {
+  if (locationPath === "/") {
     return "/";
   }
 
-  if (rootPath === os.homedir()) {
+  if (locationPath === os.homedir()) {
     return "Home";
   }
 
-  if (rootPath.endsWith(path.join("Mobile Documents", "com~apple~CloudDocs"))) {
+  if (locationPath.endsWith(path.join("Mobile Documents", "com~apple~CloudDocs"))) {
     return "iCloud";
   }
 
-  return path.basename(rootPath) || formatPathForDisplay(rootPath);
+  return path.basename(locationPath) || formatPathForDisplay(locationPath);
 }
 
-function getDefaultScopeRootColor(rootPath: string): SearchScopeRootColor {
+function getDefaultScopeLocationColor(locationPath: string): SearchScopeLocationColor {
   let hash = 0;
-  for (const character of rootPath) {
+  for (const character of locationPath) {
     hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
   }
 
-  return scopeRootColorPalette[hash % scopeRootColorPalette.length];
+  return scopeLocationColorPalette[hash % scopeLocationColorPalette.length];
 }
 
-function formatScopeRootPreview(root: SearchScopeRoot) {
-  const displayPath = formatScopeRootPath(root);
-  return root.label === getDefaultScopeRootLabel(root.path) ? displayPath : `${root.label} - ${displayPath}`;
+function formatScopeLocationPreview(location: SearchScopeLocation) {
+  const displayPath = formatScopeLocationPath(location);
+  return location.label === getDefaultScopeLocationLabel(location.path)
+    ? displayPath
+    : `${location.label} - ${displayPath}`;
 }
 
 function withTrailingSlash(value: string) {
   return value.endsWith("/") ? value : `${value}/`;
 }
 
-function isSearchScopeRootColor(value: unknown): value is SearchScopeRootColor {
-  return typeof value === "string" && scopeRootColorPalette.includes(value as SearchScopeRootColor);
+function isSearchScopeLocationColor(value: unknown): value is SearchScopeLocationColor {
+  return typeof value === "string" && scopeLocationColorPalette.includes(value as SearchScopeLocationColor);
 }
 
 async function readSearchScopeVariant(scope: SearchScope, followSymlinks: boolean): Promise<SearchScopeIndexVariant> {
-  const metadataPath = buildIndexPaths({ searchRoots: getScopeRootPaths(scope), followSymlinks }).metadataPath;
+  const locationPaths = getScopeLocationPaths(scope);
+  const allLocations = locationPaths.map((path) => buildLocationIndexPaths(path, followSymlinks));
+  const manifests = await Promise.all(
+    allLocations.map((locationIndexPaths) => getLocationManifest(locationIndexPaths.metadataPath)),
+  );
 
-  if (!fs.existsSync(metadataPath)) {
+  if (manifests.some((manifest) => manifest === null)) {
     return { followSymlinks, metadata: null };
   }
 
+  const validManifests = manifests.filter((manifest): manifest is NonNullable<typeof manifest> => manifest !== null);
+
+  if (validManifests.length === 0) {
+    return { followSymlinks, metadata: null };
+  }
+
+  const latestBuiltAt = validManifests.reduce((latest, manifest) => {
+    return manifest.builtAt > latest ? manifest.builtAt : latest;
+  }, validManifests[0].builtAt);
+
+  const combinedMetadata: IndexMetadata = {
+    version: validManifests[0].version,
+    hash: createHash("sha1")
+      .update(
+        validManifests
+          .map((manifest) => `${manifest.locationPath}:${manifest.hash}`)
+          .sort()
+          .join("|"),
+      )
+      .digest("hex"),
+    entryCount: validManifests.reduce((count, manifest) => count + manifest.entryCount, 0),
+    builtAt: latestBuiltAt,
+    searchRoots: validManifests.map((manifest) => manifest.locationPath),
+    followSymlinks,
+  };
+
   return {
     followSymlinks,
-    metadata: await readIndexMetadata(metadataPath),
+    metadata: combinedMetadata,
   };
 }

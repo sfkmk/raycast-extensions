@@ -7,32 +7,47 @@ import {
   LaunchProps,
   LaunchType,
   List,
+  showToast,
+  Toast,
+  Color,
 } from "@raycast/api";
 import { useCachedPromise, usePromise } from "@raycast/utils";
 import { basename } from "path";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ensureFdCLI } from "./lib/fd-downloader";
 import { ensureFzfCLI } from "./lib/fzf-downloader";
-import { useFileIndex } from "./hooks/use-file-index";
+import { useFileIndex, useMultiLocationIndex, type LocationIndexInfo } from "./hooks/use-file-index";
 import { useFuzzySearch } from "./hooks/use-fuzzy-search";
 import {
   formatPathForDisplay,
   formatRelativeParentPath,
-  getBestMatchingRoot,
+  getBestMatchingLocation,
   getBuiltinSearchScopes,
-  getScopeRootColorValue,
-  getScopeRootPaths,
+  getScopeLocationColorValue,
+  getScopeLocationPaths,
   homeSearchScopeId,
+  everythingSearchScopeId,
   loadSearchScopesState,
   resolveSearchScope,
 } from "./lib/search-scopes";
-import type { ManageSearchScopesLaunchContext, Prefs, SearchFilesLaunchContext } from "./lib/types";
+import type {
+  ManageSearchScopesLaunchContext,
+  Prefs,
+  SearchFilesLaunchContext,
+  SearchResult,
+  SearchScopeLocation,
+} from "./lib/types";
 
 const delayedEmptyViewMs = 600;
 
+type ResultLocationInfo = {
+  matchingLocation?: { label: string; color: string; path: string };
+  isAvailable: boolean;
+  status: "ready" | "offline" | "stale";
+};
+
 export default function Command(props: LaunchProps<{ launchContext: SearchFilesLaunchContext }>) {
   const prefs = getPreferenceValues<Prefs>();
-
   const [searchText, setSearchText] = useState("");
   const [selectedScopeId, setSelectedScopeId] = useState<string | undefined>(props.launchContext?.scopeId);
 
@@ -83,28 +98,85 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
     }
   });
 
-  const activeScopeRootPaths = useMemo(() => (activeScope ? getScopeRootPaths(activeScope) : undefined), [activeScope]);
+  const activeScopeLocationPaths = useMemo(
+    () => (activeScope ? getScopeLocationPaths(activeScope) : undefined),
+    [activeScope],
+  );
 
-  const indexState = useFileIndex({
+  const isEverything = activeScope?.id === everythingSearchScopeId;
+
+  const multiLocationIndexState = useMultiLocationIndex(
+    isEverything ? activeScope : undefined,
+    prefs.followSymlinks,
     fdPath,
-    searchRoots: activeScopeRootPaths,
+  );
+
+  const regularIndexState = useFileIndex({
+    fdPath: isEverything ? undefined : fdPath,
+    searchRoots: isEverything ? undefined : activeScopeLocationPaths,
     followSymlinks: prefs.followSymlinks,
   });
 
+  const indexState = isEverything ? multiLocationIndexState : regularIndexState;
+
   const { results, isLoading: isSearchLoading } = useFuzzySearch({
     fzfPath,
-    indexPath: indexState.indexPath,
+    indexPaths: indexState.indexPaths,
     revision: indexState.revision,
     searchText,
     prefs,
+    locationInfos: indexState.locationInfos,
   });
+
+  const locationInfoMap = useMemo(() => {
+    const map = new Map<string, LocationIndexInfo>();
+    for (const info of indexState.locationInfos ?? []) {
+      map.set(info.locationId, info);
+    }
+    return map;
+  }, [indexState.locationInfos]);
+
+  const resultLocations = useMemo(() => {
+    if (!activeScope) {
+      return [];
+    }
+
+    if (!isEverything) {
+      return activeScope.locations;
+    }
+
+    const locationsById = new Map<string, SearchScopeLocation>();
+    for (const location of activeScope.locations) {
+      locationsById.set(location.id, location);
+    }
+
+    for (const scope of scopes) {
+      if (scope.id === everythingSearchScopeId) {
+        continue;
+      }
+
+      for (const location of scope.locations) {
+        if (!locationsById.has(location.id)) {
+          locationsById.set(location.id, location);
+        }
+      }
+    }
+
+    return Array.from(locationsById.values());
+  }, [activeScope, isEverything, scopes]);
+
+  const scopeStatusSummary = useMemo(
+    () => summarizeLocationInfos(indexState.locationInfos),
+    [indexState.locationInfos],
+  );
+  const allLocationsUnavailable = scopeStatusSummary.allOffline && !scopeStatusSummary.hasUsableCache;
 
   const baseListLoading =
     isScopesLoading ||
     isFdLoading ||
     isFzfCliLoading ||
     (!activeScope && isScopesLoading) ||
-    (!indexState.indexPath && indexState.isLoading) ||
+    (!indexState.indexPaths?.length && indexState.isLoading) ||
     (!results.length && isSearchLoading);
 
   const resultCounts = useMemo(() => {
@@ -153,12 +225,21 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
   }, [resultCounts, prefs.showResultTypeBreakdown]);
 
   const emptyView = useMemo(() => {
-    if (!activeScopeRootPaths || activeScopeRootPaths.length === 0) {
+    if (!activeScopeLocationPaths || activeScopeLocationPaths.length === 0) {
       return {
-        kind: "no-roots" as const,
+        kind: "no-locations" as const,
         icon: Icon.Folder,
         title: "No search locations",
         description: "This scope has no folders configured. Add locations in the scope manager.",
+      };
+    }
+
+    if (allLocationsUnavailable) {
+      return {
+        kind: "unavailable" as const,
+        icon: Icon.ExclamationMark,
+        title: "Locations not available",
+        description: "None of the locations in this scope are connected. Connect a location to search.",
       };
     }
 
@@ -171,7 +252,7 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
       };
     }
 
-    if (!indexState.indexPath && indexState.isLoading) {
+    if (!indexState.indexPaths?.length && indexState.isLoading) {
       return {
         kind: "indexing" as const,
         icon: Icon.Hourglass,
@@ -181,6 +262,14 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
     }
 
     if (results.length === 0 && searchText && !isSearchLoading) {
+      if (scopeStatusSummary.anyOffline && scopeStatusSummary.hasUsableCache) {
+        return {
+          kind: "no-results-cache" as const,
+          icon: Icon.MagnifyingGlass,
+          title: "No matching files",
+          description: "Some locations are offline - results may be outdated. Try different keywords.",
+        };
+      }
       return {
         kind: "no-results" as const,
         icon: Icon.MagnifyingGlass,
@@ -189,23 +278,39 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
       };
     }
 
+    if (results.length === 0 && !searchText && scopeStatusSummary.allOffline && scopeStatusSummary.hasUsableCache) {
+      return {
+        kind: "offline-empty" as const,
+        icon: Icon.WifiDisabled,
+        title: "Using saved results",
+        description: "These locations are offline right now, and there are no saved results to show yet.",
+      };
+    }
+
     return undefined;
   }, [
-    activeScopeRootPaths,
+    activeScopeLocationPaths,
+    allLocationsUnavailable,
     indexState.error,
-    indexState.indexPath,
+    indexState.indexPaths,
     indexState.isLoading,
     results.length,
     searchText,
     isSearchLoading,
+    scopeStatusSummary,
   ]);
 
-  const shouldDelayEmptyView = emptyView?.kind === "indexing" || emptyView?.kind === "error";
+  const shouldDelayEmptyView =
+    emptyView?.kind === "indexing" || emptyView?.kind === "error" || emptyView?.kind === "unavailable";
   const [canShowDelayedEmptyView, setCanShowDelayedEmptyView] = useState(false);
 
   useEffect(() => {
     if (!shouldDelayEmptyView) {
       setCanShowDelayedEmptyView(false);
+      return;
+    }
+    if (emptyView?.kind === "unavailable") {
+      setCanShowDelayedEmptyView(true);
       return;
     }
 
@@ -215,11 +320,46 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
     }, delayedEmptyViewMs);
 
     return () => clearTimeout(timeout);
-  }, [activeScope?.id, shouldDelayEmptyView]);
+  }, [activeScope?.id, shouldDelayEmptyView, emptyView?.kind]);
 
   const pendingEmptyView = emptyView && shouldDelayEmptyView && !canShowDelayedEmptyView ? emptyView : undefined;
   const visibleEmptyView = emptyView && (!shouldDelayEmptyView || canShowDelayedEmptyView) ? emptyView : undefined;
   const isListLoading = visibleEmptyView || pendingEmptyView ? false : baseListLoading || shouldDelayEmptyView;
+
+  const getLocationInfo = (
+    result: SearchResult,
+    scope: { id: string; locations: SearchScopeLocation[] } | undefined,
+  ): ResultLocationInfo => {
+    if (!scope) {
+      return { isAvailable: true, status: "ready" };
+    }
+
+    const matchingLocation = getBestMatchingLocation(result.path, resultLocations);
+    const sourceLocation = result.sourceLocationId
+      ? resultLocations.find((location) => location.id === result.sourceLocationId)
+      : matchingLocation;
+    const sourceInfo = result.sourceLocationId
+      ? locationInfoMap.get(result.sourceLocationId)
+      : sourceLocation
+        ? locationInfoMap.get(sourceLocation.id)
+        : undefined;
+    const isAvailable = sourceInfo?.isAvailable ?? true;
+    const status: "ready" | "offline" | "stale" =
+      sourceInfo?.status === "stale" || sourceInfo?.status === "unavailable"
+        ? "stale"
+        : sourceInfo?.status === "offline"
+          ? "offline"
+          : "ready";
+
+    return {
+      matchingLocation:
+        resultLocations.length > 1 && sourceLocation
+          ? { label: sourceLocation.label, color: sourceLocation.color, path: sourceLocation.path }
+          : undefined,
+      isAvailable,
+      status,
+    };
+  };
 
   return (
     <List
@@ -275,21 +415,42 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
             const filepath = result.path;
             const filename = result.name || basename(filepath);
             const subtitle = activeScope
-              ? formatRelativeParentPath(filepath, result.isDirectory, activeScope.roots)
+              ? formatRelativeParentPath(filepath, result.isDirectory, activeScope.locations)
               : formatPathForDisplay(filepath);
-            const matchingRoot = activeScope ? getBestMatchingRoot(filepath, activeScope.roots) : undefined;
-            const accessories =
-              activeScope && activeScope.roots.length > 1 && matchingRoot
-                ? [
-                    {
-                      tag: {
-                        value: matchingRoot.label,
-                        color: getScopeRootColorValue(matchingRoot.color),
-                      },
-                      tooltip: formatPathForDisplay(matchingRoot.path),
-                    },
-                  ]
-                : [];
+            const locationInfo = getLocationInfo(result, activeScope);
+
+            const accessories: List.Item.Accessory[] = [];
+
+            if (locationInfo.matchingLocation) {
+              accessories.push({
+                tag: {
+                  value: locationInfo.matchingLocation.label,
+                  color: getScopeLocationColorValue(
+                    locationInfo.matchingLocation.color as
+                      | "blue"
+                      | "green"
+                      | "magenta"
+                      | "orange"
+                      | "purple"
+                      | "red"
+                      | "yellow",
+                  ),
+                },
+                tooltip: formatPathForDisplay(locationInfo.matchingLocation.path),
+              });
+            }
+
+            if (locationInfo.status !== "ready" && locationInfo.isAvailable === false) {
+              const statusText = locationInfo.status === "offline" ? "Offline" : "Stale";
+              accessories.push({
+                icon: {
+                  source: locationInfo.status === "offline" ? Icon.WifiDisabled : Icon.Clock,
+                  tintColor: locationInfo.status === "offline" ? Color.SecondaryText : Color.Orange,
+                },
+                text: statusText,
+                tooltip: `${statusText} - Results from cached index`,
+              });
+            }
 
             return (
               <List.Item
@@ -300,22 +461,14 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
                 subtitle={subtitle}
                 quickLook={{ path: filepath, name: filename }}
                 actions={
-                  <SearchCommandActionPanel
+                  <SearchResultActionPanel
+                    result={result}
                     activeScope={activeScope}
                     activeScopeIndex={activeScopeIndex}
                     cycleScope={cycleScope}
                     scopes={scopes}
-                  >
-                    <Action.Open title="Open" target={filepath} />
-                    <Action.ShowInFinder title="Show in Finder" path={filepath} />
-                    <Action.OpenWith path={filepath} shortcut={{ modifiers: ["cmd"], key: "o" }} />
-                    <Action.CopyToClipboard
-                      title="Copy Path to Clipboard"
-                      content={filepath}
-                      shortcut={{ modifiers: ["cmd"], key: "c" }}
-                    />
-                    <Action.ToggleQuickLook shortcut={{ modifiers: ["cmd"], key: "y" }} />
-                  </SearchCommandActionPanel>
+                    locationInfo={locationInfo}
+                  />
                 }
               />
             );
@@ -326,22 +479,103 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
   );
 }
 
+function SearchResultActionPanel({
+  result,
+  activeScope,
+  activeScopeIndex,
+  cycleScope,
+  scopes,
+  locationInfo,
+}: {
+  result: SearchResult;
+  activeScope?: { id: string; locations: SearchScopeLocation[] };
+  activeScopeIndex: number;
+  cycleScope: (direction: 1 | -1) => void;
+  scopes: Array<{ id: string; name: string }>;
+  locationInfo: ResultLocationInfo;
+}) {
+  const filepath = result.path;
+  const isAvailable = locationInfo.isAvailable !== false;
+
+  return (
+    <ActionPanel>
+      <ActionPanel.Section>
+        {isAvailable ? (
+          <>
+            <Action.Open title="Open" target={filepath} />
+            <Action.ShowInFinder title="Show in Finder" path={filepath} />
+            <Action.OpenWith path={filepath} shortcut={{ modifiers: ["cmd"], key: "o" }} />
+            <Action.ToggleQuickLook shortcut={{ modifiers: ["cmd"], key: "y" }} />
+          </>
+        ) : (
+          <>
+            <Action icon={Icon.Folder} onAction={() => showOfflineLocationToast("open this file")} title="Open" />
+            <Action
+              icon={Icon.Folder}
+              onAction={() => showOfflineLocationToast("reveal this file in Finder")}
+              title="Show in Finder"
+            />
+            <Action
+              icon={Icon.AppWindow}
+              onAction={() => showOfflineLocationToast("open this file with another app")}
+              title="Open with"
+            />
+            <Action icon={Icon.Eye} onAction={() => showOfflineLocationToast("preview this file")} title="Quick Look" />
+          </>
+        )}
+        <Action.CopyToClipboard
+          title="Copy Path to Clipboard"
+          content={filepath}
+          shortcut={{ modifiers: ["cmd"], key: "c" }}
+        />
+      </ActionPanel.Section>
+      <ActionPanel.Section>
+        <Action
+          icon={Icon.ChevronUp}
+          onAction={() => cycleScope(-1)}
+          shortcut={{ modifiers: ["cmd", "opt"], key: "arrowUp" }}
+          title={`Scope: ${scopes[(activeScopeIndex - 1 + scopes.length) % scopes.length]?.name}`}
+        />
+        <Action
+          icon={Icon.ChevronDown}
+          onAction={() => cycleScope(1)}
+          shortcut={{ modifiers: ["cmd", "opt"], key: "arrowDown" }}
+          title={`Scope: ${scopes[(activeScopeIndex + 1) % scopes.length]?.name}`}
+        />
+        {activeScope ? (
+          <Action
+            icon={Icon.Gear}
+            onAction={() => openScopeInManager(activeScope.id)}
+            shortcut={{ modifiers: ["cmd"], key: "m" }}
+            title="Manage Current Search Scope"
+          />
+        ) : null}
+      </ActionPanel.Section>
+    </ActionPanel>
+  );
+}
+
+function showOfflineLocationToast(actionLabel: string) {
+  return showToast({
+    style: Toast.Style.Failure,
+    title: "Location not available",
+    message: `Connect the storage device to ${actionLabel}.`,
+  });
+}
+
 function SearchCommandActionPanel({
   activeScope,
   activeScopeIndex,
   cycleScope,
   scopes,
-  children,
 }: {
   activeScope?: { id: string };
   activeScopeIndex: number;
   cycleScope: (direction: 1 | -1) => void;
   scopes: Array<{ id: string; name: string }>;
-  children?: ReactNode;
 }) {
   return (
     <ActionPanel>
-      {children}
       <ActionPanel.Section>
         <Action
           icon={Icon.ChevronUp}
@@ -386,4 +620,12 @@ function getResultIcon(result: { isDirectory: boolean; isSymbolicLink: boolean }
   }
 
   return result.isDirectory ? Icon.Folder : Icon.Document;
+}
+
+function summarizeLocationInfos(locationInfos: LocationIndexInfo[]) {
+  return {
+    anyOffline: locationInfos.some((locationInfo) => !locationInfo.isAvailable),
+    allOffline: locationInfos.length > 0 && locationInfos.every((locationInfo) => !locationInfo.isAvailable),
+    hasUsableCache: locationInfos.some((locationInfo) => Boolean(locationInfo.dataPath)),
+  };
 }

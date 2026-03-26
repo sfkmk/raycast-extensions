@@ -9,18 +9,19 @@ export type Prefs = {
 
 export type SearchScopeId = string;
 
-export type SearchScopeRootColor = "blue" | "green" | "magenta" | "orange" | "purple" | "red" | "yellow";
+export type SearchScopeLocationColor = "blue" | "green" | "magenta" | "orange" | "purple" | "red" | "yellow";
 
-export type SearchScopeRoot = {
+export type SearchScopeLocation = {
+  id: string;
   path: string;
   label: string;
-  color: SearchScopeRootColor;
+  color: SearchScopeLocationColor;
 };
 
 export type SearchScope = {
   id: SearchScopeId;
   name: string;
-  roots: SearchScopeRoot[];
+  locations: SearchScopeLocation[];
   isBuiltin: boolean;
 };
 
@@ -36,6 +37,8 @@ export type SearchResult = {
   isDirectory: boolean;
   isHidden: boolean;
   isSymbolicLink: boolean;
+  sourceLocationId?: string;
+  sourceAvailable?: boolean;
 };
 
 export type IndexMetadata = {
@@ -66,6 +69,7 @@ export type ManageSearchScopesLaunchContext = {
 };
 
 export type IndexState = {
+  indexPaths?: string[];
   indexPath?: string;
   revision?: string;
   isLoading: boolean;

@@ -1,29 +1,44 @@
 import { spawn } from "child_process";
 import fs from "fs";
 import os from "os";
-import { useEffect, useRef, useState } from "react";
+import path from "path";
+import { useEffect, useMemo, useRef, useState } from "react";
 import readline from "readline";
 import Stream from "stream";
 import { pipeline } from "stream/promises";
 import { indexFieldSeparator, parseIndexRecord } from "../lib/cache";
 import type { Prefs, SearchResult } from "../lib/types";
+import type { LocationIndexInfo } from "./use-file-index";
 
 type UseFuzzySearchOptions = {
   fzfPath?: string;
-  indexPath?: string;
+  indexPaths?: string[];
   revision?: string;
   searchText: string;
   prefs: Prefs;
+  locationInfos?: LocationIndexInfo[];
 };
 
-export function useFuzzySearch({ fzfPath, indexPath, revision, searchText, prefs }: UseFuzzySearchOptions) {
+export function useFuzzySearch({
+  fzfPath,
+  indexPaths,
+  revision,
+  searchText,
+  prefs,
+  locationInfos,
+}: UseFuzzySearchOptions) {
   const { includeDirectories, includeHidden, ignoreSpacesInSearch, matchFullPath } = prefs;
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const searchRunId = useRef(0);
 
+  const locationInfosKey = useMemo(
+    () => (locationInfos ? JSON.stringify(locationInfos.map((l) => l.locationId)) : undefined),
+    [locationInfos],
+  );
+
   useEffect(() => {
-    if (!fzfPath || !indexPath || !revision) {
+    if (!fzfPath || !indexPaths || indexPaths.length === 0 || !revision) {
       setResults([]);
       setIsLoading(false);
       return;
@@ -35,10 +50,11 @@ export function useFuzzySearch({ fzfPath, indexPath, revision, searchText, prefs
 
     runFuzzySearch({
       fzfPath,
-      indexPath,
+      indexPaths,
       searchText,
       prefs,
       signal: abortController.signal,
+      locationInfos,
     })
       .then((nextResults) => {
         if (abortController.signal.aborted || currentRunId !== searchRunId.current) {
@@ -65,10 +81,12 @@ export function useFuzzySearch({ fzfPath, indexPath, revision, searchText, prefs
     includeDirectories,
     includeHidden,
     ignoreSpacesInSearch,
-    indexPath,
+    indexPaths,
     matchFullPath,
     revision,
     searchText,
+    locationInfosKey,
+    locationInfos,
   ]);
 
   return { results, isLoading };
@@ -76,13 +94,21 @@ export function useFuzzySearch({ fzfPath, indexPath, revision, searchText, prefs
 
 type RunFuzzySearchOptions = {
   fzfPath: string;
-  indexPath: string;
+  indexPaths: string[];
   searchText: string;
   prefs: Prefs;
   signal: AbortSignal;
+  locationInfos?: LocationIndexInfo[];
 };
 
-async function runFuzzySearch({ fzfPath, indexPath, searchText, prefs, signal }: RunFuzzySearchOptions) {
+async function runFuzzySearch({
+  fzfPath,
+  indexPaths,
+  searchText,
+  prefs,
+  signal,
+  locationInfos,
+}: RunFuzzySearchOptions) {
   let searchTerm = searchText;
   if (prefs.ignoreSpacesInSearch) {
     searchTerm = searchTerm.replaceAll(" ", "");
@@ -99,7 +125,6 @@ async function runFuzzySearch({ fzfPath, indexPath, searchText, prefs, signal }:
   );
 
   const filteredResults: SearchResult[] = [];
-  const readStream = fs.createReadStream(indexPath);
   let filterBuffer = Buffer.alloc(0);
   let stoppedEarly = false;
   let stderr = "";
@@ -159,15 +184,13 @@ async function runFuzzySearch({ fzfPath, indexPath, searchText, prefs, signal }:
         return;
       }
 
-      const hydratedResult = hydrateSearchResult(parsed);
+      const hydratedResult = hydrateSearchResult(parsed, locationInfos);
       if (!hydratedResult) {
         return;
       }
 
       if (filteredResults.length >= 1000) {
         stoppedEarly = true;
-        readStream.destroy();
-        filterTransform.destroy();
         fzf.stdin?.destroy();
         fzf.kill();
         return;
@@ -205,26 +228,36 @@ async function runFuzzySearch({ fzfPath, indexPath, searchText, prefs, signal }:
     });
   });
 
-  try {
-    await Promise.all([
-      outputPromise,
-      closePromise,
-      pipeline(readStream, filterTransform, fzf.stdin as Stream.Writable).catch((error) => {
-        if (signal.aborted || stoppedEarly || isBrokenPipeError(error)) {
-          return;
-        }
+  const streamPromise = pipeline(
+    Stream.Readable.from(streamIndexFiles(indexPaths, signal, () => stoppedEarly)),
+    filterTransform,
+    fzf.stdin as Stream.Writable,
+  ).catch((error) => {
+    if (signal.aborted || stoppedEarly || isBrokenPipeError(error)) {
+      return;
+    }
 
-        throw error;
-      }),
-    ]);
+    throw error;
+  });
+
+  try {
+    await Promise.all([outputPromise, closePromise, streamPromise]);
   } finally {
-    readStream.destroy();
+    fzf.stdin?.destroy();
   }
 
-  return filteredResults;
+  return dedupeResults(filteredResults);
 }
 
-function hydrateSearchResult(result: SearchResult) {
+function hydrateSearchResult(
+  result: SearchResult,
+  locationInfos: LocationIndexInfo[] | undefined,
+): SearchResult | null {
+  const sourceLocation = result.sourceLocationId
+    ? locationInfos?.find((locationInfo) => locationInfo.locationId === result.sourceLocationId)
+    : undefined;
+  const isSourceAvailable = sourceLocation ? sourceLocation.isAvailable : true;
+
   try {
     const stats = fs.lstatSync(result.path);
 
@@ -233,7 +266,8 @@ function hydrateSearchResult(result: SearchResult) {
         ...result,
         isDirectory: stats.isDirectory(),
         isSymbolicLink: false,
-      } satisfies SearchResult;
+        sourceAvailable: isSourceAvailable,
+      };
     }
 
     try {
@@ -241,16 +275,61 @@ function hydrateSearchResult(result: SearchResult) {
         ...result,
         isDirectory: fs.statSync(result.path).isDirectory(),
         isSymbolicLink: true,
-      } satisfies SearchResult;
+        sourceAvailable: isSourceAvailable,
+      };
     } catch {
       return {
         ...result,
         isDirectory: false,
         isSymbolicLink: true,
-      } satisfies SearchResult;
+        sourceAvailable: isSourceAvailable,
+      };
     }
   } catch {
+    if (!isSourceAvailable) {
+      return {
+        ...result,
+        sourceAvailable: false,
+      };
+    }
     return null;
+  }
+}
+
+function dedupeResults(results: SearchResult[]): SearchResult[] {
+  const seen = new Map<string, SearchResult>();
+
+  for (const result of results) {
+    const key = path.normalize(result.path);
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, result);
+    }
+  }
+
+  return Array.from(seen.values());
+}
+
+async function* streamIndexFiles(indexPaths: string[], signal: AbortSignal, shouldStop: () => boolean) {
+  for (const indexPath of indexPaths) {
+    if (signal.aborted || shouldStop() || !fs.existsSync(indexPath)) {
+      continue;
+    }
+
+    const readStream = fs.createReadStream(indexPath);
+
+    try {
+      for await (const chunk of readStream) {
+        if (signal.aborted || shouldStop()) {
+          readStream.destroy();
+          return;
+        }
+
+        yield chunk;
+      }
+    } finally {
+      readStream.destroy();
+    }
   }
 }
 
