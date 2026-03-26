@@ -14,8 +14,11 @@ export type SearchScopeLocationColor = "blue" | "green" | "magenta" | "orange" |
 export type SearchScopeLocation = {
   id: string;
   path: string;
-  label: string;
-  color: SearchScopeLocationColor;
+  badgeLabelOverride?: string;
+  basePathAliasOverride?: string;
+  colorOverride?: SearchScopeLocationColor;
+  label?: string;
+  color?: SearchScopeLocationColor;
 };
 
 export type SearchScope = {

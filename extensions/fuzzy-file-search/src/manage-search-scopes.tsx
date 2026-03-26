@@ -21,6 +21,12 @@ import { useEffect, useState } from "react";
 import { ensureFdCLI } from "./lib/fd-downloader";
 import { rebuildLocationIndexes } from "./lib/file-index";
 import {
+  formatPathForLocation,
+  getDefaultLocationBadgeLabel,
+  getDefaultLocationBasePathAlias,
+  getLocationBadgeLabel,
+} from "./lib/location-display";
+import {
   createSavedSearchScope,
   everythingSearchScopeId,
   formatEntryCount,
@@ -30,6 +36,7 @@ import {
   formatScopeLocationsMarkdown,
   formatScopeLocationsPreview,
   getBuiltinSearchScopes,
+  getScopeLocationColor,
   getScopeLocationColorOptions,
   getScopeLocationColorValue,
   getScopeLocationPaths,
@@ -67,9 +74,12 @@ type ScopeFormValues = {
 };
 
 type LocationFormValues = {
-  color: SearchScopeLocationColor;
-  label: string;
+  badgeLabel: string;
+  basePathAlias: string;
+  color: SearchScopeLocationColor | "automatic";
 };
+
+const automaticLocationColorValue = "automatic";
 
 export default function Command(props: LaunchProps<{ launchContext: ManageSearchScopesLaunchContext }>) {
   const prefs = getPreferenceValues<Prefs>();
@@ -190,13 +200,15 @@ export default function Command(props: LaunchProps<{ launchContext: ManageSearch
       successTitle: `Indexed ${nextScope.name}`,
       successMessage: "Search results are up to date",
     });
+
+    return nextScope;
   }
 
   async function handleUpdateScopeLocations(scope: SavedSearchScope, locations: SearchScopeLocation[]) {
     const nextScope = await updateSavedSearchScope(scope, { name: scope.name, locations });
     const nextScopes = (data?.savedScopes ?? []).map((entry) => (entry.id === scope.id ? nextScope : entry));
     await saveSavedSearchScopes(nextScopes);
-    await showToast({ style: Toast.Style.Success, title: `Updated ${scope.name} location labels` });
+    await showToast({ style: Toast.Style.Success, title: `Saved changes to ${scope.name}` });
     await revalidate();
     return nextScope;
   }
@@ -339,7 +351,7 @@ function ScopeActionPanel({
   scope: SearchScope;
   defaultScopeId: SearchScopeId;
   onCreateScope: (values: ScopeFormValues) => Promise<void>;
-  onUpdateScope: (scope: SavedSearchScope, values: ScopeFormValues) => Promise<void>;
+  onUpdateScope: (scope: SavedSearchScope, values: ScopeFormValues) => Promise<SavedSearchScope>;
   onUpdateScopeLocations: (scope: SavedSearchScope, locations: SearchScopeLocation[]) => Promise<SavedSearchScope>;
   onDeleteScope: (scope: SavedSearchScope) => Promise<void>;
   onReindexScope: (scope: SearchScope) => Promise<void>;
@@ -363,7 +375,11 @@ function ScopeActionPanel({
           icon={Icon.Pencil}
           shortcut={{ modifiers: ["cmd"], key: "e" }}
           target={
-            <SearchScopeForm onCreate={onCreateScope} onUpdate={onUpdateScope} scope={scope as SavedSearchScope} />
+            <SearchScopeEditor
+              onUpdateScope={onUpdateScope}
+              onUpdateScopeLocations={onUpdateScopeLocations}
+              scope={scope as SavedSearchScope}
+            />
           }
           title="Edit Search Scope"
         />
@@ -375,17 +391,6 @@ function ScopeActionPanel({
         target={<SearchScopeForm onCreate={onCreateScope} onUpdate={onUpdateScope} />}
         title="Add Search Scope"
       />
-
-      {!scope.isBuiltin ? (
-        <Action.Push
-          icon={Icon.Tag}
-          shortcut={{ modifiers: ["cmd"], key: "b" }}
-          target={
-            <SearchScopeEditor onUpdateScopeLocations={onUpdateScopeLocations} scope={scope as SavedSearchScope} />
-          }
-          title="Manage Location Badges"
-        />
-      ) : null}
 
       {!isDefault ? (
         <Action
@@ -447,7 +452,7 @@ function SearchScopeForm({
 }: {
   scope?: SavedSearchScope;
   onCreate: (values: ScopeFormValues) => Promise<void>;
-  onUpdate: (scope: SavedSearchScope, values: ScopeFormValues) => Promise<void>;
+  onUpdate: (scope: SavedSearchScope, values: ScopeFormValues) => Promise<SavedSearchScope>;
 }) {
   const { pop } = useNavigation();
 
@@ -503,9 +508,11 @@ function SearchScopeForm({
 
 function SearchScopeEditor({
   scope,
+  onUpdateScope,
   onUpdateScopeLocations,
 }: {
   scope: SavedSearchScope;
+  onUpdateScope: (scope: SavedSearchScope, values: ScopeFormValues) => Promise<SavedSearchScope>;
   onUpdateScopeLocations: (scope: SavedSearchScope, locations: SearchScopeLocation[]) => Promise<SavedSearchScope>;
 }) {
   const prefs = getPreferenceValues<Prefs>();
@@ -518,10 +525,21 @@ function SearchScopeEditor({
     [currentScope.locations, prefs.followSymlinks],
   );
 
+  async function handleUpdateScopeSettings(values: ScopeFormValues) {
+    const nextScope = await onUpdateScope(currentScope, values);
+    setCurrentScope(nextScope);
+    return nextScope;
+  }
+
   async function handleUpdateLocation(locationPath: string, values: LocationFormValues) {
     const nextLocations = currentScope.locations.map((location) =>
       location.path === locationPath
-        ? { ...location, color: values.color, label: values.label.trim() || location.label }
+        ? {
+            ...location,
+            badgeLabelOverride: values.badgeLabel.trim() || undefined,
+            basePathAliasOverride: values.basePathAlias.trim() || undefined,
+            colorOverride: values.color === automaticLocationColorValue ? undefined : values.color,
+          }
         : location,
     );
     const nextScope = await onUpdateScopeLocations(currentScope, nextLocations);
@@ -540,7 +558,7 @@ function SearchScopeEditor({
     }
 
     const confirmed = await confirmAlert({
-      title: `Remove ${location.label}?`,
+      title: `Remove ${getLocationBadgeLabel(location)}?`,
       message: "This removes the location from the scope but keeps the folder on disk untouched.",
       primaryAction: {
         title: "Remove Location",
@@ -559,16 +577,48 @@ function SearchScopeEditor({
     setCurrentScope(nextScope);
   }
 
+  const scopeSettingsTarget = (
+    <SearchScopeForm
+      onCreate={async () => undefined}
+      onUpdate={async (_scope, values) => handleUpdateScopeSettings(values)}
+      scope={currentScope}
+    />
+  );
+
   return (
-    <List searchBarPlaceholder="Manage scope locations">
+    <List searchBarPlaceholder="Edit search scope">
+      <List.Section title="Scope">
+        <List.Item
+          icon={Icon.Folder}
+          subtitle={formatScopeLocationsPreview(currentScope)}
+          title={currentScope.name}
+          actions={
+            <ActionPanel>
+              <Action.Push
+                icon={Icon.Pencil}
+                shortcut={{ modifiers: ["cmd"], key: "e" }}
+                target={scopeSettingsTarget}
+                title="Edit Scope"
+              />
+              <Action.Push
+                icon={Icon.Plus}
+                shortcut={{ modifiers: ["cmd"], key: "n" }}
+                target={scopeSettingsTarget}
+                title="Add Search Location"
+              />
+            </ActionPanel>
+          }
+        />
+      </List.Section>
       <List.Section title="Locations">
         {currentScope.locations.map((location) => {
           const statusInfo = locationStatuses?.find((s) => s.locationId === location.id);
+          const badgeLabel = getLocationBadgeLabel(location);
           const accessories: List.Item.Accessory[] = [
             {
               tag: {
-                value: location.label,
-                color: getScopeLocationColorValue(location.color),
+                value: badgeLabel,
+                color: getScopeLocationColorValue(getScopeLocationColor(location)),
               },
             },
           ];
@@ -599,18 +649,25 @@ function SearchScopeEditor({
               accessories={accessories}
               icon={Icon.Folder}
               subtitle={formatScopeLocationPath(location)}
-              title={location.label}
+              title={badgeLabel}
               actions={
                 <ActionPanel>
                   <Action.Push
                     icon={Icon.Pencil}
+                    shortcut={{ modifiers: ["cmd"], key: "e" }}
                     target={
                       <SearchScopeLocationForm
                         onSubmit={(values) => handleUpdateLocation(location.path, values)}
                         location={location}
                       />
                     }
-                    title="Edit Location Badge"
+                    title="Edit Location Metadata"
+                  />
+                  <Action.Push
+                    icon={Icon.Plus}
+                    shortcut={{ modifiers: ["cmd"], key: "n" }}
+                    target={scopeSettingsTarget}
+                    title="Add Search Location"
                   />
                   <Action
                     icon={Icon.Trash}
@@ -639,14 +696,10 @@ function SearchScopeLocationForm({
   const { pop } = useNavigation();
 
   async function handleSubmit(values: LocationFormValues) {
-    if (!values.label.trim()) {
-      await showToast({ style: Toast.Style.Failure, title: "Location label is required" });
-      return;
-    }
-
     await onSubmit({
+      badgeLabel: values.badgeLabel,
+      basePathAlias: values.basePathAlias,
       color: values.color,
-      label: values.label,
     });
     pop();
   }
@@ -655,13 +708,29 @@ function SearchScopeLocationForm({
     <Form
       actions={
         <ActionPanel>
-          <Action.SubmitForm onSubmit={handleSubmit} title="Save Location Badge" />
+          <Action.SubmitForm onSubmit={handleSubmit} title="Save Location Metadata" />
         </ActionPanel>
       }
     >
-      <Form.Description text={formatScopeLocationPath(location)} title="Folder" />
-      <Form.TextField defaultValue={location.label} id="label" placeholder="iCloud" title="Badge Label" />
-      <Form.Dropdown defaultValue={location.color} id="color" title="Badge Color">
+      <Form.Description text={location.path} title="Location" />
+      <Form.TextField
+        defaultValue={location.badgeLabelOverride ?? ""}
+        id="badgeLabel"
+        placeholder={getDefaultLocationBadgeLabel(location.path)}
+        title="Badge Label"
+      />
+      <Form.TextField
+        defaultValue={location.basePathAliasOverride ?? ""}
+        id="basePathAlias"
+        placeholder={getDefaultLocationBasePathAlias(location.path)}
+        title="Base Path Alias"
+      />
+      <Form.Dropdown
+        defaultValue={location.colorOverride ?? automaticLocationColorValue}
+        id="color"
+        title="Badge Color"
+      >
+        <Form.Dropdown.Item title="Automatic" value={automaticLocationColorValue} />
         {getScopeLocationColorOptions().map((option) => (
           <Form.Dropdown.Item
             key={option.value}
@@ -748,12 +817,12 @@ function buildScopeInsightsMarkdown(scope: SearchScope, insights: SearchScopeIns
   const title = `# ${scope.name}`;
   const locations = `## Search Locations\n${formatScopeLocationsMarkdown(scope)}`;
   const variants =
-    insights?.variants.map((variant) => buildVariantMarkdown(variant)).join("\n\n") ?? "No index data yet.";
+    insights?.variants.map((variant) => buildVariantMarkdown(scope, variant)).join("\n\n") ?? "No index data yet.";
 
   return [title, locations, `## Index Insights\n${variants}`].join("\n\n");
 }
 
-function buildVariantMarkdown(variant: SearchScopeInsights["variants"][number]) {
+function buildVariantMarkdown(scope: SearchScope, variant: SearchScopeInsights["variants"][number]) {
   const heading = variant.followSymlinks ? "### Follow Symbolic Links" : "### Standard Traversal";
 
   if (!variant.metadata) {
@@ -765,8 +834,13 @@ function buildVariantMarkdown(variant: SearchScopeInsights["variants"][number]) 
     `- Status: Indexed`,
     `- Entries: ${formatEntryCount(variant.metadata.entryCount)}`,
     `- Built: ${new Date(variant.metadata.builtAt).toLocaleString()}`,
-    `- Locations: ${variant.metadata.searchRoots.map(formatPathForDisplay).join(", ")}`,
+    `- Locations: ${variant.metadata.searchRoots.map((searchRoot) => formatSearchRootForScope(scope, searchRoot)).join(", ")}`,
   ].join("\n");
+}
+
+function formatSearchRootForScope(scope: SearchScope, searchRoot: string) {
+  const matchingLocation = scope.locations.find((location) => location.path === searchRoot);
+  return matchingLocation ? formatPathForLocation(searchRoot, matchingLocation) : formatPathForDisplay(searchRoot);
 }
 
 async function loadManagerData(followSymlinks: boolean) {

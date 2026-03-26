@@ -4,6 +4,13 @@ import afs from "fs/promises";
 import os from "os";
 import path from "path";
 import { buildLocationIndexPaths, getLocationManifest } from "./cache";
+import {
+  formatPathForDisplay as formatDisplayPath,
+  formatScopeLocationPath as formatDisplayScopeLocationPath,
+  getDefaultLocationBadgeLabel,
+  getLegacyDefaultLocationBadgeLabel,
+  getLocationBadgeLabel,
+} from "./location-display";
 import type {
   SavedSearchScope,
   SearchScope,
@@ -68,13 +75,13 @@ export function getBuiltinSearchScopes(): SearchScope[] {
     {
       id: homeSearchScopeId,
       name: "Home",
-      locations: [createSearchScopeLocation(os.homedir(), { color: "blue", label: "Home" })],
+      locations: [createSearchScopeLocation(os.homedir(), { colorOverride: "blue" })],
       isBuiltin: true,
     },
     {
       id: everythingSearchScopeId,
       name: "Everything",
-      locations: [createSearchScopeLocation("/", { color: "orange", label: "/" })],
+      locations: [createSearchScopeLocation("/", { colorOverride: "orange" })],
       isBuiltin: true,
     },
   ];
@@ -173,7 +180,7 @@ export function getScopeLocationPaths(scope: Pick<SearchScope, "locations">) {
 }
 
 export function formatPathForDisplay(filePath: string) {
-  return filePath.startsWith(os.homedir()) ? filePath.replace(os.homedir(), "~") : filePath;
+  return formatDisplayPath(filePath);
 }
 
 export function getBestMatchingLocation(filePath: string, locations: SearchScopeLocation[]) {
@@ -210,11 +217,7 @@ export function formatRelativeParentPath(filePath: string, isDirectory: boolean,
 }
 
 export function formatScopeLocationPath(location: SearchScopeLocation) {
-  const formatted = formatPathForDisplay(location.path);
-  if (formatted === "/" || formatted === "~") {
-    return formatted;
-  }
-  return `${formatted}/`;
+  return formatDisplayScopeLocationPath(location);
 }
 
 export function formatScopeLocationsPreview(scope: Pick<SearchScope, "locations">) {
@@ -226,11 +229,13 @@ export function formatScopeLocationsPreview(scope: Pick<SearchScope, "locations"
     return formatScopeLocationPreview(scope.locations[0]);
   }
 
-  return `${scope.locations[0].label} +${scope.locations.length - 1} more`;
+  return `${getLocationBadgeLabel(scope.locations[0])} +${scope.locations.length - 1} more`;
 }
 
 export function formatScopeLocationsMarkdown(scope: Pick<SearchScope, "locations">) {
-  return scope.locations.map((location) => `- ${location.label}: \`${formatScopeLocationPath(location)}\``).join("\n");
+  return scope.locations
+    .map((location) => `- ${getLocationBadgeLabel(location)}: \`${formatScopeLocationPath(location)}\``)
+    .join("\n");
 }
 
 export function formatEntryCount(entryCount: number) {
@@ -294,6 +299,10 @@ export function getScopeLocationColorValue(color: SearchScopeLocationColor) {
   return scopeLocationColorMap[color];
 }
 
+export function getScopeLocationColor(location: Pick<SearchScopeLocation, "path" | "colorOverride">) {
+  return location.colorOverride ?? getDefaultScopeLocationColor(location.path);
+}
+
 async function loadSavedSearchScopes(): Promise<SavedSearchScope[]> {
   const v2Value = await LocalStorage.getItem<string>(savedSearchScopesKeyV2);
   if (v2Value) {
@@ -348,9 +357,7 @@ function migrateLegacySavedSearchScope(scope: LegacySavedSearchScope): SavedSear
   return {
     id: scope.id,
     name: scope.name,
-    locations: scope.roots.map((root) =>
-      createSearchScopeLocation(root.path, { color: root.color, label: root.label }),
-    ),
+    locations: scope.roots.map((root) => createSearchScopeLocation(root.path, normalizeLegacyLocationOverrides(root))),
     isBuiltin: false,
     createdAt: scope.createdAt,
     updatedAt: scope.updatedAt,
@@ -442,8 +449,10 @@ function normalizeScopeLocation(location: string | Partial<SearchScopeLocation> 
   }
 
   return createSearchScopeLocation(location.path, {
-    color: isSearchScopeLocationColor(location.color) ? location.color : undefined,
-    label: typeof location.label === "string" ? location.label : undefined,
+    badgeLabelOverride: getBadgeLabelOverride(location),
+    basePathAliasOverride:
+      typeof location.basePathAliasOverride === "string" ? location.basePathAliasOverride : undefined,
+    colorOverride: getLocationColorOverride(location),
   });
 }
 
@@ -474,17 +483,18 @@ function mergeScopeLocations(
 
 function createSearchScopeLocation(
   locationPath: string,
-  overrides?: Partial<SearchScopeLocation>,
+  overrides?: Pick<SearchScopeLocation, "badgeLabelOverride" | "basePathAliasOverride" | "colorOverride">,
 ): SearchScopeLocation {
   const normalizedPath = normalizeLocationPath(locationPath);
   return {
     id: deriveLocationId(normalizedPath),
     path: normalizedPath,
-    label: overrides?.label?.trim() || getDefaultScopeLocationLabel(normalizedPath),
-    color:
-      overrides?.color && isSearchScopeLocationColor(overrides.color)
-        ? overrides.color
-        : getDefaultScopeLocationColor(normalizedPath),
+    badgeLabelOverride: normalizeOptionalString(overrides?.badgeLabelOverride),
+    basePathAliasOverride: normalizeOptionalString(overrides?.basePathAliasOverride),
+    colorOverride:
+      overrides?.colorOverride && isSearchScopeLocationColor(overrides.colorOverride)
+        ? overrides.colorOverride
+        : undefined,
   } satisfies SearchScopeLocation;
 }
 
@@ -505,22 +515,6 @@ function normalizeLocationPath(locationPath: string) {
   return path.normalize(trimmedPath);
 }
 
-function getDefaultScopeLocationLabel(locationPath: string) {
-  if (locationPath === "/") {
-    return "/";
-  }
-
-  if (locationPath === os.homedir()) {
-    return "Home";
-  }
-
-  if (locationPath.endsWith(path.join("Mobile Documents", "com~apple~CloudDocs"))) {
-    return "iCloud";
-  }
-
-  return path.basename(locationPath) || formatPathForDisplay(locationPath);
-}
-
 function getDefaultScopeLocationColor(locationPath: string): SearchScopeLocationColor {
   let hash = 0;
   for (const character of locationPath) {
@@ -532,13 +526,54 @@ function getDefaultScopeLocationColor(locationPath: string): SearchScopeLocation
 
 function formatScopeLocationPreview(location: SearchScopeLocation) {
   const displayPath = formatScopeLocationPath(location);
-  return location.label === getDefaultScopeLocationLabel(location.path)
-    ? displayPath
-    : `${location.label} - ${displayPath}`;
+  const badgeLabel = getLocationBadgeLabel(location);
+  return badgeLabel === getDefaultLocationBadgeLabel(location.path) ? displayPath : `${badgeLabel} - ${displayPath}`;
 }
 
 function withTrailingSlash(value: string) {
   return value.endsWith("/") ? value : `${value}/`;
+}
+
+function getBadgeLabelOverride(location: Partial<SearchScopeLocation>) {
+  const explicitOverride = normalizeOptionalString(location.badgeLabelOverride);
+  if (explicitOverride) {
+    return explicitOverride;
+  }
+
+  const legacyLabel = normalizeOptionalString(location.label);
+  if (!legacyLabel) {
+    return undefined;
+  }
+
+  return legacyLabel === getLegacyDefaultLocationBadgeLabel(location.path ?? "") ? undefined : legacyLabel;
+}
+
+function getLocationColorOverride(location: Partial<SearchScopeLocation>) {
+  if (isSearchScopeLocationColor(location.colorOverride)) {
+    return location.colorOverride;
+  }
+
+  if (!isSearchScopeLocationColor(location.color) || typeof location.path !== "string") {
+    return undefined;
+  }
+
+  return location.color === getDefaultScopeLocationColor(location.path) ? undefined : location.color;
+}
+
+function normalizeOptionalString(value: string | undefined) {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? trimmedValue : undefined;
+}
+
+function normalizeLegacyLocationOverrides(location: {
+  path: string;
+  label?: string;
+  color?: SearchScopeLocationColor;
+}) {
+  return {
+    badgeLabelOverride: getBadgeLabelOverride(location),
+    colorOverride: getLocationColorOverride(location),
+  };
 }
 
 function isSearchScopeLocationColor(value: unknown): value is SearchScopeLocationColor {

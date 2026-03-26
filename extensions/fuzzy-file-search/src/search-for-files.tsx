@@ -18,11 +18,14 @@ import { ensureFdCLI } from "./lib/fd-downloader";
 import { ensureFzfCLI } from "./lib/fzf-downloader";
 import { useFileIndex, useMultiLocationIndex, type LocationIndexInfo } from "./hooks/use-file-index";
 import { useFuzzySearch } from "./hooks/use-fuzzy-search";
+import { getLocationBadgeLabel } from "./lib/location-display";
 import {
   formatPathForDisplay,
   formatRelativeParentPath,
+  formatScopeLocationPath,
   getBestMatchingLocation,
   getBuiltinSearchScopes,
+  getScopeLocationColor,
   getScopeLocationColorValue,
   getScopeLocationPaths,
   homeSearchScopeId,
@@ -41,7 +44,7 @@ import type {
 const delayedEmptyViewMs = 600;
 
 type ResultLocationInfo = {
-  matchingLocation?: { label: string; color: string; path: string };
+  matchingLocation?: SearchScopeLocation;
   isAvailable: boolean;
   status: "ready" | "offline" | "stale";
 };
@@ -352,10 +355,7 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
           : "ready";
 
     return {
-      matchingLocation:
-        resultLocations.length > 1 && sourceLocation
-          ? { label: sourceLocation.label, color: sourceLocation.color, path: sourceLocation.path }
-          : undefined,
+      matchingLocation: resultLocations.length > 1 ? sourceLocation : undefined,
       isAvailable,
       status,
     };
@@ -424,19 +424,10 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
             if (locationInfo.matchingLocation) {
               accessories.push({
                 tag: {
-                  value: locationInfo.matchingLocation.label,
-                  color: getScopeLocationColorValue(
-                    locationInfo.matchingLocation.color as
-                      | "blue"
-                      | "green"
-                      | "magenta"
-                      | "orange"
-                      | "purple"
-                      | "red"
-                      | "yellow",
-                  ),
+                  value: getLocationBadgeLabel(locationInfo.matchingLocation),
+                  color: getScopeLocationColorValue(getScopeLocationColor(locationInfo.matchingLocation)),
                 },
-                tooltip: formatPathForDisplay(locationInfo.matchingLocation.path),
+                tooltip: formatScopeLocationPath(locationInfo.matchingLocation),
               });
             }
 
