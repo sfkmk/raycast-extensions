@@ -376,6 +376,7 @@ function ScopeActionPanel({
           shortcut={{ modifiers: ["cmd"], key: "e" }}
           target={
             <SearchScopeEditor
+              defaultScopeId={defaultScopeId}
               onUpdateScope={onUpdateScope}
               onUpdateScopeLocations={onUpdateScopeLocations}
               scope={scope as SavedSearchScope}
@@ -507,16 +508,19 @@ function SearchScopeForm({
 }
 
 function SearchScopeEditor({
+  defaultScopeId,
   scope,
   onUpdateScope,
   onUpdateScopeLocations,
 }: {
+  defaultScopeId: SearchScopeId;
   scope: SavedSearchScope;
   onUpdateScope: (scope: SavedSearchScope, values: ScopeFormValues) => Promise<SavedSearchScope>;
   onUpdateScopeLocations: (scope: SavedSearchScope, locations: SearchScopeLocation[]) => Promise<SavedSearchScope>;
 }) {
   const prefs = getPreferenceValues<Prefs>();
   const [currentScope, setCurrentScope] = useState(scope);
+  const { data: scopeInsights } = usePromise(loadSearchScopeInsights, [currentScope]);
 
   const { data: locationStatuses } = usePromise(
     async (locations: SearchScopeLocation[], followSymlinks: boolean) => {
@@ -584,11 +588,28 @@ function SearchScopeEditor({
       scope={currentScope}
     />
   );
+  const locationCountText =
+    currentScope.locations.length === 1 ? "1 location" : `${currentScope.locations.length} locations`;
+  const scopeAccessories = buildScopeAccessories(
+    currentScope,
+    scopeInsights,
+    locationStatuses,
+    defaultScopeId,
+    false,
+  ).filter(
+    (accessory) =>
+      !(
+        "text" in accessory &&
+        typeof accessory.text === "string" &&
+        (accessory.text === locationCountText || accessory.text === "Offline" || accessory.text.endsWith(" offline"))
+      ),
+  );
 
   return (
     <List searchBarPlaceholder="Edit search scope">
       <List.Section title="Scope">
         <List.Item
+          accessories={scopeAccessories}
           icon={Icon.Filter}
           title={currentScope.name}
           actions={
@@ -609,7 +630,7 @@ function SearchScopeEditor({
           }
         />
       </List.Section>
-      <List.Section title="Locations">
+      <List.Section subtitle={`${currentScope.locations.length}`} title="Locations">
         {currentScope.locations.map((location) => {
           const statusInfo = locationStatuses?.find((s) => s.locationId === location.id);
           const badgeLabel = getLocationBadgeLabel(location);
@@ -790,7 +811,7 @@ function buildScopeAccessories(
     if (summary.unreachable > 0) {
       accessories.push({
         icon: { source: Icon.CircleDisabled, tintColor: Color.Red },
-        text: `${summary.unreachable} offline`,
+        text: summary.unreachable === 1 ? "Offline" : `${summary.unreachable} offline`,
         tooltip: `${summary.unreachable} location${summary.unreachable === 1 ? " is" : "s are"} currently offline`,
       });
     }
@@ -811,7 +832,7 @@ function buildScopeAccessories(
     accessories.push({
       icon: Icon.Clock,
       date: builtAtDate,
-      tooltip: `Last indexed: ${exactTime}`,
+      tooltip: `Oldest location index: ${exactTime}`,
     });
   }
 
@@ -838,7 +859,7 @@ function buildVariantMarkdown(scope: SearchScope, variant: SearchScopeInsights["
     heading,
     `- Status: Indexed`,
     `- Entries: ${formatEntryCount(variant.metadata.entryCount)}`,
-    `- Built: ${new Date(variant.metadata.builtAt).toLocaleString()}`,
+    `- Oldest Location Index: ${new Date(variant.metadata.builtAt).toLocaleString()}`,
     `- Locations: ${variant.metadata.searchRoots.map((searchRoot) => formatSearchRootForScope(scope, searchRoot)).join(", ")}`,
   ].join("\n");
 }

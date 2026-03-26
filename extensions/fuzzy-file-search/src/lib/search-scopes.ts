@@ -597,8 +597,8 @@ async function readSearchScopeVariant(scope: SearchScope, followSymlinks: boolea
     return { followSymlinks, metadata: null };
   }
 
-  const latestBuiltAt = validManifests.reduce((latest, manifest) => {
-    return manifest.builtAt > latest ? manifest.builtAt : latest;
+  const oldestBuiltAt = validManifests.reduce((oldest, manifest) => {
+    return manifest.builtAt < oldest ? manifest.builtAt : oldest;
   }, validManifests[0].builtAt);
 
   const combinedMetadata: IndexMetadata = {
@@ -612,7 +612,7 @@ async function readSearchScopeVariant(scope: SearchScope, followSymlinks: boolea
       )
       .digest("hex"),
     entryCount: validManifests.reduce((count, manifest) => count + manifest.entryCount, 0),
-    builtAt: latestBuiltAt,
+    builtAt: oldestBuiltAt,
     searchRoots: validManifests.map((manifest) => manifest.locationPath),
     followSymlinks,
   };
