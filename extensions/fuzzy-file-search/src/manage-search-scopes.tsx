@@ -690,16 +690,18 @@ function buildScopeAccessories(
 ) {
   const indexSummaryAccessory = insights?.latest?.metadata
     ? { text: formatScopeInsightSummary(insights) }
-    : {
-        icon: { source: Icon.Circle, tintColor: Color.SecondaryText },
-        text: "Not indexed",
-        tooltip: "This scope has not been indexed yet",
-      };
+    : isIndexing
+      ? undefined
+      : {
+          icon: { source: Icon.Circle, tintColor: Color.SecondaryText },
+          text: "Not indexed",
+          tooltip: "This scope has not been indexed yet",
+        };
 
   const accessories: List.Item.Accessory[] = [
     ...(scope.id === defaultScopeId ? [{ text: "Default" }] : []),
     { text: scope.locations.length === 1 ? "1 location" : `${scope.locations.length} locations` },
-    indexSummaryAccessory,
+    ...(indexSummaryAccessory ? [indexSummaryAccessory] : []),
   ];
 
   if (locationStatuses && locationStatuses.length > 0) {
