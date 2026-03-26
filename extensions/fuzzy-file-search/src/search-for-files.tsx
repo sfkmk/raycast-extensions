@@ -435,8 +435,8 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
               const statusText = locationInfo.status === "offline" ? "Offline" : "Stale";
               accessories.push({
                 icon: {
-                  source: locationInfo.status === "offline" ? Icon.WifiDisabled : Icon.Clock,
-                  tintColor: locationInfo.status === "offline" ? Color.SecondaryText : Color.Orange,
+                  source: locationInfo.status === "offline" ? Icon.CircleDisabled : Icon.Clock,
+                  tintColor: locationInfo.status === "offline" ? Color.Red : Color.Orange,
                 },
                 text: statusText,
                 tooltip: `${statusText} - Results from cached index`,

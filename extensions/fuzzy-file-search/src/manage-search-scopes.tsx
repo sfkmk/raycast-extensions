@@ -325,7 +325,7 @@ export default function Command(props: LaunchProps<{ launchContext: ManageSearch
               defaultScopeId,
               Boolean(reindexingScopeCounts[scope.id]),
             )}
-            icon={Icon.Folder}
+            icon={Icon.Filter}
             subtitle={formatScopeLocationsPreview(scope)}
             title={scope.name}
           />
@@ -589,8 +589,7 @@ function SearchScopeEditor({
     <List searchBarPlaceholder="Edit search scope">
       <List.Section title="Scope">
         <List.Item
-          icon={Icon.Folder}
-          subtitle={formatScopeLocationsPreview(currentScope)}
+          icon={Icon.Filter}
           title={currentScope.name}
           actions={
             <ActionPanel>
@@ -625,16 +624,22 @@ function SearchScopeEditor({
 
           if (statusInfo) {
             if (!statusInfo.isAvailable) {
-              const tooltip =
-                statusInfo.status === "stale"
-                  ? "Offline - using an older saved index"
-                  : statusInfo.status === "offline"
-                    ? "Offline - searchable from saved results"
-                    : "Offline - connect storage to search";
-              accessories.push({
-                icon: { source: Icon.CircleDisabled, tintColor: Color.Red },
-                tooltip,
-              });
+              if (statusInfo.status === "stale") {
+                accessories.push({
+                  icon: { source: Icon.Clock, tintColor: Color.Orange },
+                  text: "Stale",
+                  tooltip: "Offline - using an older saved index",
+                });
+              } else {
+                accessories.push({
+                  icon: { source: Icon.CircleDisabled, tintColor: Color.Red },
+                  text: "Offline",
+                  tooltip:
+                    statusInfo.status === "offline"
+                      ? "Offline - searchable from saved results"
+                      : "Offline - connect storage to search",
+                });
+              }
             } else if (statusInfo.status === "notIndexed") {
               accessories.push({
                 icon: { source: Icon.Circle, tintColor: Color.SecondaryText },
