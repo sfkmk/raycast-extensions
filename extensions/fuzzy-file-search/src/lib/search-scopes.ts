@@ -179,6 +179,33 @@ export function getScopeLocationPaths(scope: Pick<SearchScope, "locations">) {
   return scope.locations.map((location) => location.path);
 }
 
+export function getEffectiveSearchScopeLocations(scope: SearchScope, scopes: SearchScope[] = [scope]) {
+  if (scope.id !== everythingSearchScopeId) {
+    return scope.locations;
+  }
+
+  const locationsByPath = new Map<string, SearchScopeLocation>();
+
+  for (const location of scope.locations) {
+    locationsByPath.set(normalizeLocationPath(location.path), location);
+  }
+
+  for (const candidateScope of scopes) {
+    if (candidateScope.id === everythingSearchScopeId) {
+      continue;
+    }
+
+    for (const location of candidateScope.locations) {
+      const normalizedPath = normalizeLocationPath(location.path);
+      if (!locationsByPath.has(normalizedPath)) {
+        locationsByPath.set(normalizedPath, location);
+      }
+    }
+  }
+
+  return Array.from(locationsByPath.values());
+}
+
 export function formatPathForDisplay(filePath: string) {
   return formatDisplayPath(filePath);
 }
@@ -260,8 +287,15 @@ export function formatRelativeTime(isoDate: string) {
   return formatter.format(days, "day");
 }
 
-export async function loadSearchScopeInsights(scope: SearchScope): Promise<SearchScopeInsights> {
-  const variants = await Promise.all([readSearchScopeVariant(scope, false), readSearchScopeVariant(scope, true)]);
+export async function loadSearchScopeInsights(
+  scope: SearchScope,
+  scopes: SearchScope[] = [scope],
+): Promise<SearchScopeInsights> {
+  const effectiveLocations = getEffectiveSearchScopeLocations(scope, scopes);
+  const variants = await Promise.all([
+    readSearchScopeVariant(effectiveLocations, false),
+    readSearchScopeVariant(effectiveLocations, true),
+  ]);
   const latest =
     variants
       .filter((variant) => variant.metadata !== null)
@@ -580,8 +614,11 @@ function isSearchScopeLocationColor(value: unknown): value is SearchScopeLocatio
   return typeof value === "string" && scopeLocationColorPalette.includes(value as SearchScopeLocationColor);
 }
 
-async function readSearchScopeVariant(scope: SearchScope, followSymlinks: boolean): Promise<SearchScopeIndexVariant> {
-  const locationPaths = getScopeLocationPaths(scope);
+async function readSearchScopeVariant(
+  locations: SearchScopeLocation[],
+  followSymlinks: boolean,
+): Promise<SearchScopeIndexVariant> {
+  const locationPaths = getScopeLocationPaths({ locations });
   const allLocations = locationPaths.map((path) => buildLocationIndexPaths(path, followSymlinks));
   const manifests = await Promise.all(
     allLocations.map((locationIndexPaths) => getLocationManifest(locationIndexPaths.metadataPath)),

@@ -3,7 +3,6 @@ import {
   ActionPanel,
   Alert,
   confirmAlert,
-  Detail,
   Form,
   getPreferenceValues,
   Icon,
@@ -21,7 +20,6 @@ import { useEffect, useState } from "react";
 import { ensureFdCLI } from "./lib/fd-downloader";
 import { rebuildLocationIndexes } from "./lib/file-index";
 import {
-  formatPathForLocation,
   getDefaultLocationBadgeLabel,
   getDefaultLocationBasePathAlias,
   getLocationBadgeLabel,
@@ -30,11 +28,10 @@ import {
   createSavedSearchScope,
   everythingSearchScopeId,
   formatEntryCount,
-  formatPathForDisplay,
+  formatRelativeTime,
   formatScopeInsightSummary,
   formatScopeLocationPath,
-  formatScopeLocationsMarkdown,
-  formatScopeLocationsPreview,
+  getEffectiveSearchScopeLocations,
   getBuiltinSearchScopes,
   getScopeLocationColor,
   getScopeLocationColorOptions,
@@ -53,6 +50,7 @@ import { getAllExplicitLocationPaths, isEverythingScope, clearExplicitPathsCache
 import {
   getScopeLocationsStatus,
   summarizeScopeStatus,
+  summarizeSearchableScopeIndex,
   getStatusLabel,
   type LocationStatusInfo,
 } from "./lib/location-status";
@@ -265,6 +263,7 @@ export default function Command(props: LaunchProps<{ launchContext: ManageSearch
   return (
     <List
       isLoading={isLoading}
+      isShowingDetail
       onSelectionChange={(id) => setSelectedItemId(id ?? undefined)}
       searchBarPlaceholder="Manage search scopes"
       selectedItemId={selectedItemId}
@@ -272,17 +271,23 @@ export default function Command(props: LaunchProps<{ launchContext: ManageSearch
       <List.Section title="Built-In Scopes">
         {builtInScopes.map((scope) => (
           <List.Item
+            id={scope.id}
             key={scope.id}
-            icon={scope.id === everythingSearchScopeId ? Icon.Globe : Icon.House}
-            title={scope.name}
-            subtitle={formatScopeLocationsPreview(scope)}
-            accessories={buildScopeAccessories(
+            detail={
+              <ScopeListItemDetail
+                defaultScopeId={defaultScopeId}
+                isIndexing={Boolean(reindexingScopeCounts[scope.id])}
+                locationStatuses={data?.locationStatusesById[scope.id]}
+                scope={scope}
+                scopes={scopes}
+              />
+            }
+            icon={buildManagerScopeIcon(
               scope,
-              data?.insightsById[scope.id],
               data?.locationStatusesById[scope.id],
-              defaultScopeId,
               Boolean(reindexingScopeCounts[scope.id]),
             )}
+            title={scope.id === defaultScopeId ? { tooltip: "Default scope", value: scope.name } : scope.name}
             actions={
               <ScopeActionPanel
                 defaultScopeId={defaultScopeId}
@@ -302,6 +307,7 @@ export default function Command(props: LaunchProps<{ launchContext: ManageSearch
       <List.Section subtitle={savedScopes.length > 0 ? `${savedScopes.length}` : undefined} title="Saved Scopes">
         {savedScopes.map((scope, index) => (
           <List.Item
+            id={scope.id}
             key={scope.id}
             actions={
               <ScopeActionPanel
@@ -318,16 +324,21 @@ export default function Command(props: LaunchProps<{ launchContext: ManageSearch
                 total={savedScopes.length}
               />
             }
-            accessories={buildScopeAccessories(
+            detail={
+              <ScopeListItemDetail
+                defaultScopeId={defaultScopeId}
+                isIndexing={Boolean(reindexingScopeCounts[scope.id])}
+                locationStatuses={data?.locationStatusesById[scope.id]}
+                scope={scope}
+                scopes={scopes}
+              />
+            }
+            icon={buildManagerScopeIcon(
               scope,
-              data?.insightsById[scope.id],
               data?.locationStatusesById[scope.id],
-              defaultScopeId,
               Boolean(reindexingScopeCounts[scope.id]),
             )}
-            icon={Icon.Filter}
-            subtitle={formatScopeLocationsPreview(scope)}
-            title={scope.name}
+            title={scope.id === defaultScopeId ? { tooltip: "Default scope", value: scope.name } : scope.name}
           />
         ))}
       </List.Section>
@@ -419,13 +430,6 @@ function ScopeActionPanel({
           title="Move Down"
         />
       ) : null}
-
-      <Action.Push
-        icon={Icon.BarChart}
-        shortcut={{ modifiers: ["cmd"], key: "i" }}
-        target={<SearchScopeInsightsDetail scope={scope} />}
-        title="Show Index Insights"
-      />
 
       <Action.CopyToClipboard
         content={getScopeLocationPaths(scope).join("\n")}
@@ -770,10 +774,70 @@ function SearchScopeLocationForm({
   );
 }
 
-function SearchScopeInsightsDetail({ scope }: { scope: SearchScope }) {
-  const { data: insights, isLoading } = usePromise(loadSearchScopeInsights, [scope]);
+function ScopeListItemDetail({
+  defaultScopeId,
+  isIndexing,
+  locationStatuses,
+  scope,
+  scopes,
+}: {
+  defaultScopeId: SearchScopeId;
+  isIndexing: boolean;
+  locationStatuses: LocationStatusInfo[] | undefined;
+  scope: SearchScope;
+  scopes: SearchScope[];
+}) {
+  const effectiveLocations = getEffectiveSearchScopeLocations(scope, scopes);
+  const dashboard = getManagerScopeDashboard(locationStatuses, isIndexing);
+  const locationStatusesById = new Map((locationStatuses ?? []).map((status) => [status.locationId, status]));
+  const orderedLocations = getManagerOrderedLocations(effectiveLocations, locationStatusesById);
 
-  return <Detail isLoading={isLoading} markdown={buildScopeInsightsMarkdown(scope, insights)} />;
+  return (
+    <List.Item.Detail
+      isLoading={locationStatuses === undefined}
+      metadata={
+        <List.Item.Detail.Metadata>
+          {dashboard ? (
+            <>
+              <List.Item.Detail.Metadata.TagList title="Status">
+                {buildManagerStatusTags(dashboard)}
+              </List.Item.Detail.Metadata.TagList>
+              <List.Item.Detail.Metadata.Separator />
+              <List.Item.Detail.Metadata.TagList title="Search">
+                {buildManagerSearchTags(dashboard, orderedLocations.length, scope.id === defaultScopeId)}
+              </List.Item.Detail.Metadata.TagList>
+              <List.Item.Detail.Metadata.Separator />
+              <List.Item.Detail.Metadata.Label title="Locations" />
+              {orderedLocations.map((location) => (
+                <List.Item.Detail.Metadata.Label
+                  key={location.id}
+                  icon={getManagerLocationIcon(locationStatusesById.get(location.id))}
+                  title={getLocationBadgeLabel(location)}
+                  text={formatManagerLocationText(location, locationStatusesById.get(location.id))}
+                />
+              ))}
+            </>
+          ) : (
+            <List.Item.Detail.Metadata.Label title="Loading scope details" />
+          )}
+        </List.Item.Detail.Metadata>
+      }
+    />
+  );
+}
+
+function buildManagerScopeIcon(
+  scope: SearchScope,
+  locationStatuses: LocationStatusInfo[] | undefined,
+  isIndexing: boolean,
+) {
+  const dashboard = getManagerScopeDashboard(locationStatuses, isIndexing);
+  const source =
+    scope.id === everythingSearchScopeId ? Icon.Globe : scope.id === homeSearchScopeId ? Icon.House : Icon.Filter;
+  const tintColor = dashboard ? getManagerScopeIconTint(dashboard.status) : undefined;
+  const value = tintColor ? { source, tintColor } : source;
+
+  return dashboard ? { tooltip: buildManagerStatusTooltip(dashboard), value } : source;
 }
 
 function buildScopeAccessories(
@@ -839,50 +903,316 @@ function buildScopeAccessories(
   return accessories;
 }
 
-function buildScopeInsightsMarkdown(scope: SearchScope, insights: SearchScopeInsights | undefined) {
-  const title = `# ${scope.name}`;
-  const locations = `## Search Locations\n${formatScopeLocationsMarkdown(scope)}`;
-  const variants =
-    insights?.variants.map((variant) => buildVariantMarkdown(scope, variant)).join("\n\n") ?? "No index data yet.";
+type ManagerScopeDashboardStatus = "ready" | "warning" | "offline" | "notIndexed" | "indexing";
 
-  return [title, locations, `## Index Insights\n${variants}`].join("\n\n");
-}
+type ManagerScopeDashboard = {
+  status: ManagerScopeDashboardStatus;
+  offlineCount: number;
+  staleCount: number;
+  notIndexedCount: number;
+  searchableIndex: ReturnType<typeof summarizeSearchableScopeIndex>;
+};
 
-function buildVariantMarkdown(scope: SearchScope, variant: SearchScopeInsights["variants"][number]) {
-  const heading = variant.followSymlinks ? "### Follow Symbolic Links" : "### Standard Traversal";
-
-  if (!variant.metadata) {
-    return `${heading}\n- Status: Not indexed`;
+function getManagerScopeDashboard(locationStatuses: LocationStatusInfo[] | undefined, isIndexing: boolean) {
+  if (!locationStatuses) {
+    return undefined;
   }
 
-  return [
-    heading,
-    `- Status: Indexed`,
-    `- Entries: ${formatEntryCount(variant.metadata.entryCount)}`,
-    `- Oldest Location Index: ${new Date(variant.metadata.builtAt).toLocaleString()}`,
-    `- Locations: ${variant.metadata.searchRoots.map((searchRoot) => formatSearchRootForScope(scope, searchRoot)).join(", ")}`,
-  ].join("\n");
+  const scopeStatus = summarizeScopeStatus(locationStatuses);
+  const searchableIndex = summarizeSearchableScopeIndex(locationStatuses);
+  const offlineCount = scopeStatus.offline + scopeStatus.unavailable;
+
+  let status: ManagerScopeDashboardStatus;
+
+  if (isIndexing) {
+    status = "indexing";
+  } else if (searchableIndex.indexedLocations === 0 && offlineCount === scopeStatus.total) {
+    status = "offline";
+  } else if (searchableIndex.indexedLocations === 0) {
+    status = "notIndexed";
+  } else if (offlineCount > 0 || scopeStatus.stale > 0 || scopeStatus.notIndexed > 0) {
+    status = "warning";
+  } else {
+    status = "ready";
+  }
+
+  return {
+    status,
+    offlineCount,
+    staleCount: scopeStatus.stale,
+    notIndexedCount: scopeStatus.notIndexed,
+    searchableIndex,
+  } satisfies ManagerScopeDashboard;
 }
 
-function formatSearchRootForScope(scope: SearchScope, searchRoot: string) {
-  const matchingLocation = scope.locations.find((location) => location.path === searchRoot);
-  return matchingLocation ? formatPathForLocation(searchRoot, matchingLocation) : formatPathForDisplay(searchRoot);
+function buildManagerStatusTags(dashboard: ManagerScopeDashboard) {
+  const tags = [];
+
+  if (dashboard.status === "indexing") {
+    tags.push(<List.Item.Detail.Metadata.TagList.Item key="indexing" color={Color.Blue} text="Indexing" />);
+  }
+
+  if (dashboard.offlineCount > 0) {
+    tags.push(
+      <List.Item.Detail.Metadata.TagList.Item
+        key="offline"
+        color={Color.Red}
+        text={formatCountLabel(dashboard.offlineCount, "offline")}
+      />,
+    );
+  }
+
+  if (dashboard.staleCount > 0) {
+    tags.push(
+      <List.Item.Detail.Metadata.TagList.Item
+        key="stale"
+        color={Color.Orange}
+        text={formatCountLabel(dashboard.staleCount, "stale")}
+      />,
+    );
+  }
+
+  if (dashboard.notIndexedCount > 0) {
+    tags.push(
+      <List.Item.Detail.Metadata.TagList.Item
+        key="not-indexed"
+        color={Color.SecondaryText}
+        text={formatCountLabel(dashboard.notIndexedCount, "not indexed")}
+      />,
+    );
+  }
+
+  if (tags.length === 0) {
+    tags.push(
+      <List.Item.Detail.Metadata.TagList.Item
+        key={dashboard.status}
+        color={getManagerStatusColor(dashboard.status)}
+        text={getManagerPrimaryStatusLabel(dashboard.status)}
+      />,
+    );
+  }
+
+  return tags;
+}
+
+function buildManagerSearchTags(dashboard: ManagerScopeDashboard, locationCount: number, isDefaultScope: boolean) {
+  const tags = [<List.Item.Detail.Metadata.TagList.Item key="locations" text={formatLocationCount(locationCount)} />];
+
+  if (dashboard.searchableIndex.indexedLocations > 0) {
+    tags.unshift(
+      <List.Item.Detail.Metadata.TagList.Item
+        key="items"
+        text={formatCompactItemCount(dashboard.searchableIndex.entryCount)}
+      />,
+    );
+  }
+
+  tags.push(<List.Item.Detail.Metadata.TagList.Item key="updated" text={formatManagerIndexedSummary(dashboard)} />);
+
+  if (isDefaultScope) {
+    tags.push(<List.Item.Detail.Metadata.TagList.Item key="default" color={Color.Yellow} text="Default" />);
+  }
+
+  return tags;
+}
+
+function getManagerOrderedLocations(
+  locations: SearchScopeLocation[],
+  locationStatusesById: Map<string, LocationStatusInfo>,
+) {
+  return [...locations].sort((left, right) => {
+    const leftStatus = locationStatusesById.get(left.id);
+    const rightStatus = locationStatusesById.get(right.id);
+    const statusDifference = getManagerLocationPriority(leftStatus) - getManagerLocationPriority(rightStatus);
+
+    if (statusDifference !== 0) {
+      return statusDifference;
+    }
+
+    return getLocationBadgeLabel(left).localeCompare(getLocationBadgeLabel(right), undefined, { sensitivity: "base" });
+  });
+}
+
+function getManagerLocationPriority(statusInfo: LocationStatusInfo | undefined) {
+  switch (statusInfo?.status) {
+    case "offline":
+    case "unavailable":
+      return 0;
+    case "stale":
+      return 1;
+    case "notIndexed":
+      return 2;
+    case "ready":
+      return 3;
+    default:
+      return 4;
+  }
+}
+
+function getManagerLocationIcon(statusInfo: LocationStatusInfo | undefined) {
+  if (!statusInfo) {
+    return { source: Icon.Hourglass, tintColor: Color.SecondaryText };
+  }
+
+  switch (statusInfo.status) {
+    case "ready":
+      return { source: Icon.Checkmark, tintColor: Color.Green };
+    case "stale":
+      return { source: Icon.Clock, tintColor: Color.Orange };
+    case "offline":
+    case "unavailable":
+      return { source: Icon.CircleDisabled, tintColor: Color.Red };
+    case "notIndexed":
+      return { source: Icon.Circle, tintColor: Color.SecondaryText };
+  }
+}
+
+function formatManagerLocationText(location: SearchScopeLocation, statusInfo: LocationStatusInfo | undefined) {
+  const badgeLabel = getLocationBadgeLabel(location);
+  const displayPath = formatScopeLocationPath(location);
+  const textParts = displayPath === badgeLabel ? [] : [displayPath];
+
+  if (typeof statusInfo?.activeEntryCount === "number") {
+    textParts.push(formatCompactItemCount(statusInfo.activeEntryCount));
+  }
+
+  const statusLabel = getManagerLocationStatusLabel(statusInfo?.status);
+  if (statusLabel) {
+    textParts.push(statusLabel);
+  }
+
+  return textParts.join(" · ");
+}
+
+function getManagerLocationStatusLabel(status: LocationStatusInfo["status"] | undefined) {
+  switch (status) {
+    case "offline":
+      return "Offline cached";
+    case "stale":
+      return "Stale cached";
+    case "unavailable":
+      return "Offline";
+    case "notIndexed":
+      return "Not indexed";
+    default:
+      return undefined;
+  }
+}
+
+function getManagerScopeIconTint(status: ManagerScopeDashboardStatus) {
+  switch (status) {
+    case "warning":
+      return Color.Orange;
+    case "offline":
+      return Color.Red;
+    case "notIndexed":
+      return Color.SecondaryText;
+    case "indexing":
+      return Color.Blue;
+    case "ready":
+      return undefined;
+  }
+}
+
+function buildManagerStatusTooltip(dashboard: ManagerScopeDashboard) {
+  const parts: string[] = [];
+
+  if (dashboard.status === "ready") {
+    parts.push("Ready");
+  } else if (dashboard.status === "indexing") {
+    parts.push("Indexing");
+  }
+
+  if (dashboard.offlineCount > 0) {
+    parts.push(formatCountLabel(dashboard.offlineCount, "offline"));
+  }
+
+  if (dashboard.staleCount > 0) {
+    parts.push(formatCountLabel(dashboard.staleCount, "stale"));
+  }
+
+  if (dashboard.notIndexedCount > 0) {
+    parts.push(formatCountLabel(dashboard.notIndexedCount, "not indexed"));
+  }
+
+  if (dashboard.searchableIndex.indexedLocations > 0) {
+    parts.push(formatCompactItemCount(dashboard.searchableIndex.entryCount));
+  }
+
+  if (dashboard.searchableIndex.builtAt) {
+    parts.push(`updated ${formatRelativeTime(dashboard.searchableIndex.builtAt)}`);
+  }
+
+  if (parts.length === 0) {
+    parts.push(getManagerPrimaryStatusLabel(dashboard.status));
+  }
+
+  return parts.join(" · ");
+}
+
+function getManagerPrimaryStatusLabel(status: ManagerScopeDashboardStatus) {
+  switch (status) {
+    case "ready":
+      return "Ready";
+    case "warning":
+      return "Needs attention";
+    case "offline":
+      return "Offline";
+    case "notIndexed":
+      return "Not indexed";
+    case "indexing":
+      return "Indexing";
+  }
+}
+
+function getManagerStatusColor(status: ManagerScopeDashboardStatus) {
+  switch (status) {
+    case "ready":
+      return Color.Green;
+    case "warning":
+      return Color.Orange;
+    case "offline":
+      return Color.Red;
+    case "notIndexed":
+      return Color.SecondaryText;
+    case "indexing":
+      return Color.Blue;
+  }
+}
+
+function formatLocationCount(count: number) {
+  return count === 1 ? "1 location" : `${count} locations`;
+}
+
+function formatCompactItemCount(entryCount: number) {
+  return `${formatEntryCount(entryCount)} items`;
+}
+
+function formatManagerIndexedSummary(dashboard: ManagerScopeDashboard) {
+  if (dashboard.searchableIndex.builtAt) {
+    return `Updated ${formatRelativeTime(dashboard.searchableIndex.builtAt)}`;
+  }
+
+  return dashboard.status === "indexing" ? "Refreshing now" : "No index yet";
+}
+
+function formatCountLabel(count: number, noun: string) {
+  return count === 1 ? `1 ${noun}` : `${count} ${noun}`;
 }
 
 async function loadManagerData(followSymlinks: boolean) {
   const state = await loadSearchScopesState();
-  const [insightEntries, locationStatusEntries] = await Promise.all([
-    Promise.all(state.scopes.map(async (scope) => [scope.id, await loadSearchScopeInsights(scope)] as const)),
-    Promise.all(
-      state.scopes.map(async (scope) => {
-        return [scope.id, await getScopeLocationsStatus(scope.locations, followSymlinks)] as const;
-      }),
-    ),
-  ]);
+  const locationStatusEntries = await Promise.all(
+    state.scopes.map(async (scope) => {
+      return [
+        scope.id,
+        await getScopeLocationsStatus(getEffectiveSearchScopeLocations(scope, state.scopes), followSymlinks),
+      ] as const;
+    }),
+  );
 
   return {
     ...state,
-    insightsById: Object.fromEntries(insightEntries),
     locationStatusesById: Object.fromEntries(locationStatusEntries),
   };
 }

@@ -15,6 +15,15 @@ export type LocationStatusInfo = {
   activeDataPath?: string;
   activeFollowSymlinks?: boolean;
   activeHash?: string;
+  activeEntryCount?: number;
+  activeBuiltAt?: string;
+};
+
+export type SearchableScopeIndexSummary = {
+  entryCount: number;
+  indexedLocations: number;
+  totalLocations: number;
+  builtAt?: string;
 };
 
 export type ScopeStatusSummary = {
@@ -59,15 +68,21 @@ export async function getLocationStatus(
   let activeDataPath: string | undefined;
   let activeFollowSymlinks: boolean | undefined;
   let activeHash: string | undefined;
+  let activeEntryCount: number | undefined;
+  let activeBuiltAt: string | undefined;
 
   if (hasExactCache) {
     activeDataPath = exactIndexPaths.dataPath;
     activeFollowSymlinks = followSymlinks;
     activeHash = exactManifest?.hash;
+    activeEntryCount = exactManifest?.entryCount;
+    activeBuiltAt = exactManifest?.builtAt;
   } else if (hasFallbackCache) {
     activeDataPath = fallbackIndexPaths.dataPath;
     activeFollowSymlinks = !followSymlinks;
     activeHash = fallbackManifest?.hash;
+    activeEntryCount = fallbackManifest?.entryCount;
+    activeBuiltAt = fallbackManifest?.builtAt;
   }
 
   if (hasExactCache && isAvailable) {
@@ -92,6 +107,8 @@ export async function getLocationStatus(
     activeDataPath,
     activeFollowSymlinks,
     activeHash,
+    activeEntryCount,
+    activeBuiltAt,
   };
 }
 
@@ -136,6 +153,30 @@ export function summarizeScopeStatus(statuses: LocationStatusInfo[]): ScopeStatu
   }
 
   return summary;
+}
+
+export function summarizeSearchableScopeIndex(statuses: LocationStatusInfo[]): SearchableScopeIndexSummary {
+  let entryCount = 0;
+  let indexedLocations = 0;
+  let builtAt: string | undefined;
+
+  for (const status of statuses) {
+    if (typeof status.activeEntryCount === "number") {
+      entryCount += status.activeEntryCount;
+      indexedLocations += 1;
+    }
+
+    if (status.activeBuiltAt) {
+      builtAt = builtAt ? (status.activeBuiltAt < builtAt ? status.activeBuiltAt : builtAt) : status.activeBuiltAt;
+    }
+  }
+
+  return {
+    entryCount,
+    indexedLocations,
+    totalLocations: statuses.length,
+    builtAt,
+  };
 }
 
 export function getStatusLabel(status: LocationStatus): string {

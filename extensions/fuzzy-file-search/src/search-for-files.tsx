@@ -25,6 +25,7 @@ import {
   formatScopeLocationPath,
   getBestMatchingLocation,
   getBuiltinSearchScopes,
+  getEffectiveSearchScopeLocations,
   getScopeLocationColor,
   getScopeLocationColorValue,
   getScopeLocationPaths,
@@ -144,29 +145,8 @@ export default function Command(props: LaunchProps<{ launchContext: SearchFilesL
       return [];
     }
 
-    if (!isEverything) {
-      return activeScope.locations;
-    }
-
-    const locationsById = new Map<string, SearchScopeLocation>();
-    for (const location of activeScope.locations) {
-      locationsById.set(location.id, location);
-    }
-
-    for (const scope of scopes) {
-      if (scope.id === everythingSearchScopeId) {
-        continue;
-      }
-
-      for (const location of scope.locations) {
-        if (!locationsById.has(location.id)) {
-          locationsById.set(location.id, location);
-        }
-      }
-    }
-
-    return Array.from(locationsById.values());
-  }, [activeScope, isEverything, scopes]);
+    return getEffectiveSearchScopeLocations(activeScope, scopes);
+  }, [activeScope, scopes]);
 
   const scopeStatusSummary = useMemo(
     () => summarizeLocationInfos(indexState.locationInfos),
