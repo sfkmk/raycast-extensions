@@ -25,6 +25,15 @@
       "title": "Application to search in",
       "description": "Choose which Craft installation to use. If you leave it empty, the extension auto-detects an installed Craft app.",
       "placeholder": "com.lukilabs.lukiapp"
+    },
+    {
+      "name": "supportedLanguages",
+      "type": "textfield",
+      "required": false,
+      "title": "Supported Date Languages",
+      "description": "Comma-separated language codes used for smart date recognition, for example en,de,fr,es. Fewer languages keep parsing faster.",
+      "default": "en",
+      "placeholder": "en,de"
     }
   ],
   "commands": [
@@ -43,6 +52,33 @@
           "default": false,
           "label": "Use detailed view",
           "description": "Switch the view to display Document content. It is messy!"
+        },
+        {
+          "title": "Custom Entries",
+          "name": "enableCustomEntries",
+          "type": "checkbox",
+          "required": false,
+          "default": true,
+          "label": "Enable Craft navigation entries",
+          "description": "Adds quick entries such as Starred Documents, All Tags, All Docs, Tasks, and Space shortcuts."
+        },
+        {
+          "title": "Date Display Format",
+          "name": "dateDisplayFormat",
+          "type": "textfield",
+          "required": false,
+          "default": "EEE d. MMM yyyy",
+          "placeholder": "EEE d. MMM yyyy",
+          "description": "Controls how Daily Note dates are shown in search results."
+        },
+        {
+          "title": "Show Current Year",
+          "name": "showCurrentYear",
+          "type": "checkbox",
+          "required": false,
+          "default": false,
+          "label": "Always display the year for current-year dates",
+          "description": "By default, current-year Daily Note titles hide the year to reduce visual noise."
         }
       ]
     },
@@ -122,6 +158,13 @@
       "subtitle": "Craft",
       "description": "Manage your Craft Spaces: rename, enable/disable",
       "mode": "view"
+    },
+    {
+      "name": "open-daily-note",
+      "title": "Open Daily Note",
+      "subtitle": "Craft",
+      "description": "Open today's Daily Note in your primary Craft Space",
+      "mode": "no-view"
     }
   ],
   "dependencies": {

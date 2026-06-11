@@ -1,5 +1,6 @@
 import { DatabaseWrap } from "./databaseLoader";
 import { buildMatchQuery, filterDatabasesBySpaceId, searchBlocks } from "./search";
+import { createQueryUrl } from "../utils/craftUrls";
 import { formatCraftInternalDate } from "../utils/dateTimeFormatter";
 
 const dailyNoteLookupQuery = `
@@ -11,7 +12,7 @@ LIMIT 1
 `;
 
 export const buildDailyNoteOpenUrl = (query: string, spaceID: string) => {
-  return `craftdocs://openByQuery?query=${query}&spaceId=${spaceID}`;
+  return createQueryUrl(query, spaceID);
 };
 
 export const buildDailyNoteDateQuery = (date: Date) => {

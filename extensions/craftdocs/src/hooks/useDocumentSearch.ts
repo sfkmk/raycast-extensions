@@ -1,28 +1,25 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { UseDB } from "./useDB";
-import { DocBlock, searchDocumentsAcrossDatabases } from "../lib/search";
+import useSearchEngine, { UseSearchEngineOptions } from "./useSearchEngine";
+import { DocBlock } from "../lib/search";
+import { sqliteSearchProvider } from "../providers/sqliteSearchProvider";
+import type { SearchProvider, SearchRequest } from "../providers/types";
 
-type UseDocumentSearch = {
-  resultsLoading: boolean;
-  results: DocBlock[];
+type UseDocumentSearchOptions = UseSearchEngineOptions & {
+  provider?: Pick<SearchProvider, "searchDocuments">;
 };
 
-export default function useDocumentSearch({ databasesLoading, databases }: UseDB, text: string) {
-  const [state, setState] = useState<UseDocumentSearch>({ resultsLoading: true, results: [] });
-  const deferredText = useDeferredValue(text);
+export default function useDocumentSearch(
+  db: UseDB,
+  text: string,
+  { provider = sqliteSearchProvider, ...options }: UseDocumentSearchOptions = {},
+) {
+  const executeSearch = useCallback(
+    (request: SearchRequest): DocBlock[] => provider.searchDocuments(request),
+    [provider],
+  );
 
-  useEffect(() => {
-    if (databasesLoading) {
-      return;
-    }
-
-    setState((previousState) => ({ ...previousState, resultsLoading: true }));
-
-    const results = searchDocumentsAcrossDatabases(databases, deferredText);
-    setState({ resultsLoading: false, results });
-  }, [databases, databasesLoading, deferredText]);
-
-  return state;
+  return useSearchEngine(db, text, executeSearch, options);
 }
 
 export type { DocBlock };

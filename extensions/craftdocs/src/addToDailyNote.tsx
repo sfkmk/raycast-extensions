@@ -6,6 +6,7 @@ import useCraftCommandContext from "./hooks/useCraftCommandContext";
 import { resolveAddToDailyNoteAction } from "./lib/addToDailyNote";
 import { buildDailyNoteOpenUrl, findDailyNoteBlockId } from "./lib/dailyNotes";
 import { getDailyNotePreferences } from "./preferences";
+import { createBlockInParentUrl } from "./utils/craftUrls";
 import { formatTime } from "./utils/dateTimeFormatter";
 
 interface FormValues {
@@ -102,9 +103,7 @@ export default function AddToDailyNote() {
     const finalContent = formatContent(formValues.content, preferences);
     const index = preferences.appendPosition === "beginning" ? APPEND_POSITIONS.BEGINNING : APPEND_POSITIONS.END;
 
-    return `craftdocs://createblock?parentBlockId=${
-      dailyNoteBlockId
-    }&spaceId=${formValues.spaceId}&content=${encodeURIComponent(finalContent)}&index=${index}`;
+    return createBlockInParentUrl(dailyNoteBlockId, formValues.spaceId, finalContent, index);
   };
 
   const getFallbackUrl = () => {

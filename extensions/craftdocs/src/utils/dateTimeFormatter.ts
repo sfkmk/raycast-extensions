@@ -7,6 +7,10 @@ interface TimeTokens {
   [key: string]: (date: Date) => string;
 }
 
+interface DateTokens {
+  [key: string]: (date: Date) => string;
+}
+
 // Time formatting tokens
 const TIME_TOKENS: TimeTokens = {
   // Hour tokens (24-hour)
@@ -36,6 +40,19 @@ const TIME_TOKENS: TimeTokens = {
   a: (date: Date) => (date.getHours() >= 12 ? "pm" : "am"),
 };
 
+const DATE_TOKENS: DateTokens = {
+  yyyy: (date: Date) => date.getFullYear().toString(),
+  yy: (date: Date) => date.getFullYear().toString().slice(-2),
+  MMMM: (date: Date) => date.toLocaleDateString("en", { month: "long" }),
+  MMM: (date: Date) => date.toLocaleDateString("en", { month: "short" }),
+  MM: (date: Date) => (date.getMonth() + 1).toString().padStart(2, "0"),
+  M: (date: Date) => (date.getMonth() + 1).toString(),
+  dd: (date: Date) => date.getDate().toString().padStart(2, "0"),
+  d: (date: Date) => date.getDate().toString(),
+  EEEE: (date: Date) => date.toLocaleDateString("en", { weekday: "long" }),
+  EEE: (date: Date) => date.toLocaleDateString("en", { weekday: "short" }),
+};
+
 /**
  * Format a time using a custom pattern
  * @param date - The date to format time from
@@ -54,6 +71,57 @@ export function formatTime(date: Date, pattern: string): string {
   }
 
   return result;
+}
+
+function isCurrentYear(date: Date): boolean {
+  return date.getFullYear() === new Date().getFullYear();
+}
+
+export function formatDate(date: Date, pattern: string, hideCurrentYear = true): string {
+  let result = pattern;
+
+  if (hideCurrentYear && isCurrentYear(date)) {
+    result = result
+      .replace(/,?\s*yyyy/g, "")
+      .replace(/\.yyyy/g, "")
+      .replace(/\/yyyy/g, "")
+      .replace(/\s+yyyy/g, "")
+      .replace(/yyyy\s*,?\s*/g, "");
+  }
+
+  const sortedTokens = Object.keys(DATE_TOKENS).sort((a, b) => b.length - a.length);
+  const tokenRegex = new RegExp(sortedTokens.join("|"), "g");
+
+  return result
+    .replace(tokenRegex, (match) => DATE_TOKENS[match]?.(date) ?? match)
+    .replace(/\s+/g, " ")
+    .replace(/^[,\s]+|[,\s]+$/g, "")
+    .trim();
+}
+
+export function isISODatePattern(text: string): boolean {
+  return /^\d{4}\.\d{2}\.\d{2}$/.test(text);
+}
+
+export function parseISODate(isoDateString: string): Date | null {
+  if (!isISODatePattern(isoDateString)) {
+    return null;
+  }
+
+  const [year, month, day] = isoDateString.split(".").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+
+  return date;
+}
+
+export function formatDailyNoteTitle(title: string, pattern: string, hideCurrentYear = true): string {
+  const date = parseISODate(title);
+
+  return date ? formatDate(date, pattern, hideCurrentYear) : title;
 }
 
 /**

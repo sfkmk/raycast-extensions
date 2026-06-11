@@ -1,21 +1,20 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { UseDB } from "./useDB";
-import { Block, searchBlocksAcrossDatabases } from "../lib/search";
+import useSearchEngine, { UseSearchEngineOptions } from "./useSearchEngine";
+import { Block } from "../lib/search";
+import { sqliteSearchProvider } from "../providers/sqliteSearchProvider";
+import type { SearchProvider, SearchRequest } from "../providers/types";
 
-export default function useSearch({ databasesLoading, databases }: UseDB, text: string) {
-  const [state, setState] = useState({ resultsLoading: true, results: [] as Block[] });
-  const deferredText = useDeferredValue(text);
+type UseSearchOptions = UseSearchEngineOptions & {
+  provider?: Pick<SearchProvider, "searchBlocks">;
+};
 
-  useEffect(() => {
-    if (databasesLoading) {
-      return;
-    }
+export default function useSearch(
+  db: UseDB,
+  text: string,
+  { provider = sqliteSearchProvider, ...options }: UseSearchOptions = {},
+) {
+  const executeSearch = useCallback((request: SearchRequest): Block[] => provider.searchBlocks(request), [provider]);
 
-    setState((previousState) => ({ ...previousState, resultsLoading: true }));
-
-    const results = searchBlocksAcrossDatabases(databases, deferredText);
-    setState({ results, resultsLoading: false });
-  }, [databases, databasesLoading, deferredText]);
-
-  return state;
+  return useSearchEngine(db, text, executeSearch, options);
 }

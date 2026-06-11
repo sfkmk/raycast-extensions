@@ -1,5 +1,11 @@
 import { BindParams, Database, SqlValue } from "../../assets/sql-wasm-fts5";
 import { DatabaseWrap } from "./databaseLoader";
+import {
+  consolidateTaskBlocks,
+  isDateLikeSearchQuery,
+  normalizeSearchQuery,
+  prioritizeDailyNotes,
+} from "../utils/searchHelpers";
 
 export type Block = {
   id: string;
@@ -41,12 +47,14 @@ LIMIT ?
 export const limit = 40;
 
 export const buildMatchQuery = (str: string): string => {
-  if (!str || str.length === 0) {
+  const normalized = normalizeSearchQuery(str);
+
+  if (!normalized) {
     return "";
   }
 
-  const terms = termsForFTS5(str);
-  const phrases = phrasesForFTS5(terms);
+  const terms = termsForFTS5(normalized);
+  const phrases = phrasesForFTS5(terms, isDateLikeSearchQuery(normalized));
 
   return `{content exactMatchContent} : (${phrases.join(") OR (")})`;
 };
@@ -73,26 +81,48 @@ export const resolveCreateDocumentSpaceId = ({
   return primarySpaceId || "";
 };
 
-export const searchBlocksAcrossDatabases = (databases: DatabaseWrap[], text: string): Block[] => {
+type SearchOptions = {
+  parsedDate?: Date;
+  consolidateTasks?: boolean;
+};
+
+export const searchBlocksAcrossDatabases = (
+  databases: DatabaseWrap[],
+  text: string,
+  options: SearchOptions = {},
+): Block[] => {
   const matchQuery = buildMatchQuery(text);
   const [query, params] =
     matchQuery.length > 0 ? [searchQuery, [matchQuery, limit]] : [searchQueryOnEmptyParams, [limit]];
 
-  return databases
+  const results = databases
     .map(({ database, spaceID }) => ({ database, blocks: searchBlocks(database, spaceID, query, params) }))
     .map(({ database, blocks }) => backfillBlocksWithDocumentNames(database, blocks))
     .flat();
+
+  const consolidatedResults = options.consolidateTasks === false ? results : consolidateTaskBlocks(results);
+
+  return prioritizeDailyNotes(consolidatedResults, options.parsedDate);
 };
 
-export const searchDocumentsAcrossDatabases = (databases: DatabaseWrap[], text: string): DocBlock[] => {
+export const searchDocumentsAcrossDatabases = (
+  databases: DatabaseWrap[],
+  text: string,
+  options: SearchOptions = {},
+): DocBlock[] => {
   const matchQuery = buildMatchQuery(text);
   const [query, params] =
     matchQuery.length > 0 ? [searchQuery, [matchQuery, limit]] : [searchQueryDocumentsOnEmptyParams, [limit]];
 
-  return databases
+  const results = databases
     .map(({ database, spaceID }) => ({ database, spaceID, blocks: searchBlocks(database, spaceID, query, params) }))
     .map(({ database, spaceID, blocks }) => documentize(database, spaceID, blocks))
     .flat();
+
+  return results.map((docBlock) => ({
+    ...docBlock,
+    blocks: prioritizeDailyNotes(docBlock.blocks, options.parsedDate),
+  }));
 };
 
 export const searchBlocks = (database: Database, spaceID: string, query: string, params: BindParams): Block[] => {
@@ -204,14 +234,25 @@ const uniqueDocumentIDsFromBlocks = (blocks: Block[]): string[] => {
   return [...new Set(blocks.map((block) => block.documentID))];
 };
 
-const termsForFTS5 = (str: string): string[] =>
-  str
+const termsForFTS5 = (str: string): string[] => {
+  const normalized = normalizeSearchQuery(str);
+
+  if (!normalized) {
+    return [];
+  }
+
+  return normalized
     .split(/\s+/)
     .map((word) => word.trim())
-    .map((word) => word.replace('"', " "))
+    .map((word) => word.replace(/"/g, " "))
     .map((word) => `"${word}"`);
+};
 
-const phrasesForFTS5 = (terms: string[]): string[] => {
+const phrasesForFTS5 = (terms: string[], isDateLike = false): string[] => {
+  if (isDateLike) {
+    return terms.length > 1 ? [terms.join(" "), `${terms.join(" ")}*`] : [terms.join(" ")];
+  }
+
   const phrases = [terms.join(" "), `${terms.join(" ")}*`];
 
   if (terms.length > 1) {

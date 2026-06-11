@@ -1,5 +1,4 @@
 import { List } from "@raycast/api";
-import * as chrono from "chrono-node";
 import { useState } from "react";
 import { DailyNotes } from "./components/DailyNotes";
 import { CraftEnvironmentList } from "./components/CraftCommandState";
@@ -7,6 +6,10 @@ import ListSpaceDropdown from "./components/ListSpaceDropdown";
 import { CACHE_KEYS } from "./constants";
 import useCraftCommandContext from "./hooks/useCraftCommandContext";
 import usePersistedSpaceSelection from "./hooks/usePersistedSpaceSelection";
+import { getSupportedDateLanguages } from "./preferences";
+import { parseNaturalDateInput } from "./utils/dateParsing";
+
+const supportedDateLanguages = getSupportedDateLanguages();
 
 // noinspection JSUnusedGlobalSymbols
 export default function dailyNotes() {
@@ -25,13 +28,7 @@ export default function dailyNotes() {
   const parseDate = (text: string) => {
     setQuery(text);
 
-    const nextDate = chrono.parseDate(text);
-    if (!nextDate) {
-      setDate(undefined);
-      return;
-    }
-
-    setDate(nextDate);
+    setDate(parseNaturalDateInput(text, { supportedLanguages: supportedDateLanguages }));
   };
 
   if (command.loading) {

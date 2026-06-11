@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Action, ActionPanel, List, openExtensionPreferences } from "@raycast/api";
 import { CraftConfig } from "./Config";
 import ListSpaceDropdown from "./components/ListSpaceDropdown";
@@ -10,24 +10,43 @@ import useCraftCommandContext from "./hooks/useCraftCommandContext";
 import useDocumentSearch from "./hooks/useDocumentSearch";
 import usePersistedSpaceSelection from "./hooks/usePersistedSpaceSelection";
 import useSearch from "./hooks/useSearch";
+import { useBlockSearchViewModel, useDocumentSearchViewModel } from "./hooks/useSearchViewModel";
 import { filterDatabasesBySpaceId, resolveCreateDocumentSpaceId } from "./lib/search";
-import { getSearchPreferences } from "./preferences";
+import { getSearchPreferences, getSupportedDateLanguages } from "./preferences";
+import { parseNaturalDateInput } from "./utils/dateParsing";
 
-const { useDetailedView } = getSearchPreferences();
+const searchPreferences = getSearchPreferences() as Preferences.Search & {
+  enableCustomEntries?: boolean;
+  dateDisplayFormat?: string;
+  showCurrentYear?: boolean;
+};
+const {
+  useDetailedView,
+  enableCustomEntries = true,
+  dateDisplayFormat = "EEE d. MMM yyyy",
+  showCurrentYear = false,
+} = searchPreferences;
+const supportedDateLanguages = getSupportedDateLanguages();
 
 // noinspection JSUnusedGlobalSymbols
 export default function search() {
   const command = useCraftCommandContext({ includeDatabases: true });
   const [query, setQuery] = useState("");
 
-  const availableSpaceIDs = new Set(command.db.databases.map((database) => database.spaceID));
-  const spaces =
-    command.config.config?.enabledSpaces
-      .filter((space) => availableSpaceIDs.has(space.spaceID))
-      .map((space) => ({
-        id: space.spaceID,
-        title: command.config.config?.getSpaceDisplayName(space.spaceID) || space.spaceID,
-      })) || [];
+  const availableSpaceIDs = useMemo(
+    () => new Set(command.db.databases.map((database) => database.spaceID)),
+    [command.db.databases],
+  );
+  const spaces = useMemo(
+    () =>
+      command.config.config?.enabledSpaces
+        .filter((space) => availableSpaceIDs.has(space.spaceID))
+        .map((space) => ({
+          id: space.spaceID,
+          title: command.config.config?.getSpaceDisplayName(space.spaceID) || space.spaceID,
+        })) || [],
+    [command.config.config, availableSpaceIDs],
+  );
 
   const { selectedSpaceId, setSelectedSpaceId } = usePersistedSpaceSelection({
     cacheKey: CACHE_KEYS.SEARCH_SPACE_ID,
@@ -35,6 +54,11 @@ export default function search() {
     fallbackSelection: APP_CONSTANTS.DEFAULT_SPACE_FILTER,
     alwaysAllowedSelections: [APP_CONSTANTS.DEFAULT_SPACE_FILTER],
   });
+
+  const filteredDatabases = useMemo(
+    () => filterDatabasesBySpaceId(command.db.databases, selectedSpaceId),
+    [command.db.databases, selectedSpaceId],
+  );
 
   if (command.loading) {
     return <List isLoading={true} />;
@@ -55,7 +79,7 @@ export default function search() {
   return useDetailedView ? (
     <DetailedResultsView
       config={command.config.config}
-      databases={filterDatabasesBySpaceId(command.db.databases, selectedSpaceId)}
+      databases={filteredDatabases}
       query={query}
       selectedSpaceId={selectedSpaceId}
       setQuery={setQuery}
@@ -65,7 +89,7 @@ export default function search() {
   ) : (
     <BlockResultsView
       config={command.config.config}
-      databases={filterDatabasesBySpaceId(command.db.databases, selectedSpaceId)}
+      databases={filteredDatabases}
       query={query}
       selectedSpaceId={selectedSpaceId}
       setQuery={setQuery}
@@ -94,19 +118,45 @@ const BlockResultsView = ({
   setSelectedSpaceId,
   spaces,
 }: SearchViewProps) => {
-  const searchState = useSearch({ databases, databasesLoading: false, fatalIssue: null, issues: [] }, query);
+  const parsedDate = useMemo(
+    () => parseNaturalDateInput(query, { supportedLanguages: supportedDateLanguages }),
+    [query],
+  );
+  const dbState = useMemo(() => ({ databases, databasesLoading: false, fatalIssue: null, issues: [] }), [databases]);
+  const searchState = useSearch(dbState, query, {
+    parsedDate,
+    includeTaskExpansion: enableCustomEntries,
+    includeDateFallback: true,
+  });
+  const createDocumentSpaceId = resolveCreateDocumentSpaceId({
+    selectedSpaceId,
+    primarySpaceId: config.primarySpace?.spaceID,
+  });
+  const viewModel = useBlockSearchViewModel({
+    blocks: searchState.results,
+    query,
+    config,
+    createDocumentSpaceId,
+    parsedDate,
+    dateDisplayFormat,
+    showCurrentYear,
+    enableCustomEntries,
+  });
 
   return (
     <ListBlocks
       isLoading={searchState.resultsLoading}
       onSearchTextChange={setQuery}
-      blocks={searchState.results}
+      results={viewModel.results}
       query={query}
       config={config}
-      createDocumentSpaceId={resolveCreateDocumentSpaceId({
-        selectedSpaceId,
-        primarySpaceId: config.primarySpace?.spaceID,
-      })}
+      createDocumentSpaceId={createDocumentSpaceId}
+      parsedDate={parsedDate}
+      dateDisplayFormat={dateDisplayFormat}
+      showCurrentYear={showCurrentYear}
+      enableCustomEntries={enableCustomEntries}
+      showSpaceInfo={viewModel.showSpaceInfo}
+      dailyNoteCreateAction={viewModel.dailyNoteCreateAction}
       searchBarAccessory={
         spaces.length > 1 ? (
           <ListSpaceDropdown spaces={spaces} onChange={setSelectedSpaceId} value={selectedSpaceId} includeAll={true} />
@@ -125,7 +175,29 @@ const DetailedResultsView = ({
   setSelectedSpaceId,
   spaces,
 }: SearchViewProps) => {
-  const searchState = useDocumentSearch({ databases, databasesLoading: false, fatalIssue: null, issues: [] }, query);
+  const parsedDate = useMemo(
+    () => parseNaturalDateInput(query, { supportedLanguages: supportedDateLanguages }),
+    [query],
+  );
+  const dbState = useMemo(() => ({ databases, databasesLoading: false, fatalIssue: null, issues: [] }), [databases]);
+  const searchState = useDocumentSearch(dbState, query, {
+    parsedDate,
+    includeTaskExpansion: enableCustomEntries,
+    includeDateFallback: true,
+  });
+  const createDocumentSpaceId = resolveCreateDocumentSpaceId({
+    selectedSpaceId,
+    primarySpaceId: config.primarySpace?.spaceID,
+  });
+  const viewModel = useDocumentSearchViewModel({
+    results: searchState.results,
+    query,
+    config,
+    createDocumentSpaceId,
+    parsedDate,
+    dateDisplayFormat,
+    showCurrentYear,
+  });
 
   return (
     <ListDocBlocks
@@ -134,10 +206,13 @@ const DetailedResultsView = ({
       results={searchState.results}
       query={query}
       config={config}
-      createDocumentSpaceId={resolveCreateDocumentSpaceId({
-        selectedSpaceId,
-        primarySpaceId: config.primarySpace?.spaceID,
-      })}
+      createDocumentSpaceId={createDocumentSpaceId}
+      parsedDate={parsedDate}
+      dateDisplayFormat={dateDisplayFormat}
+      showCurrentYear={showCurrentYear}
+      showSpaceInfo={viewModel.showSpaceInfo}
+      allResults={viewModel.allResults}
+      dailyNoteCreateAction={viewModel.dailyNoteCreateAction}
       searchBarAccessory={
         spaces.length > 1 ? (
           <ListSpaceDropdown spaces={spaces} onChange={setSelectedSpaceId} value={selectedSpaceId} includeAll={true} />

@@ -1,16 +1,20 @@
-import { Action, ActionPanel, List } from "@raycast/api";
+import { Action, ActionPanel, Icon, List } from "@raycast/api";
+import { createDocumentUrl } from "../utils/craftUrls";
 
 export default function CreateDocumentItem({ query, spaceID }: { query: string; spaceID: string }) {
+  const canCreateDocument = query.trim().length > 0 && spaceID.trim().length > 0;
+
   return (
     <List.Item
-      title={`Create '${query}'`}
+      title={`Create the Document '${query}'`}
       detail={<List.Item.Detail markdown={`Create Document '${query}'`} />}
+      icon={Icon.NewDocument}
       actions={
-        <ActionPanel>
-          <Action.OpenInBrowser
-            url={`craftdocs://createdocument?spaceId=${spaceID}&title=${encodeURIComponent(query)}&content=&folderId=`}
-          />
-        </ActionPanel>
+        canCreateDocument ? (
+          <ActionPanel>
+            <Action.OpenInBrowser title="Create the Document" url={createDocumentUrl(spaceID, query, "")} />
+          </ActionPanel>
+        ) : undefined
       }
     />
   );
